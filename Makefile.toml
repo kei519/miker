@@ -18,12 +18,12 @@ dependencies = ["release"]
 
 [tasks.release]
 dependencies = [
-    { name = "release-loader", path = "loader" },
+    { name = "release", path = "loader" },
 ]
 
 [tasks.build]
 dependencies = [
-    { name = "build-loader", path = "loader" },
+    { name = "build", path = "loader" },
 ]
 
 [tasks.run]
