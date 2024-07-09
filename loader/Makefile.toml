@@ -1,0 +1,7 @@
+[tasks.build-loader]
+command = "cargo"
+args = ["build", "--package=${LOADER_NAME}", "--target=${LOADER_TARGET}"]
+
+[tasks.release-loader]
+command = "cargo"
+args = ["build", "--release", "--package=${LOADER_NAME}", "--target=${LOADER_TARGET}"]

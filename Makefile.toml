@@ -17,10 +17,14 @@ LOADER_PATH = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${LOADER_TARGET}/debug/${LOA
 dependencies = ["release"]
 
 [tasks.release]
-dependencies = ["release-loader"]
+dependencies = [
+    { name = "release-loader", path = "loader" },
+]
 
 [tasks.build]
-dependencies = ["build-loader"]
+dependencies = [
+    { name = "build-loader", path = "loader" },
+]
 
 [tasks.run]
 dependencies = ["make-image", "check-ovmf_vars"]
@@ -58,14 +62,6 @@ cp "${LOADER_PATH}" "${LOADER_DEPLOY_PATH}"
 
 sleep 0.5
 '''
-
-[tasks.build-loader]
-command = "cargo"
-args = ["build", "--package=${LOADER_NAME}", "--target=${LOADER_TARGET}"]
-
-[tasks.release-loader]
-command = "cargo"
-args = ["build", "--release", "--package=${LOADER_NAME}", "--target=${LOADER_TARGET}"]
 
 [tasks.check-ovmf_vars]
 script = '''
