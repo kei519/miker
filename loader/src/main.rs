@@ -1,8 +1,18 @@
 #![no_std]
 #![no_main]
 
-#[export_name = "efi_main"]
-fn main(_: usize, _: usize) -> ! {
+use uefi::{
+    helpers, println,
+    table::{Boot, SystemTable},
+    Handle, Status,
+};
+
+#[uefi::entry]
+fn main(image: Handle, mut st: SystemTable<Boot>) -> Status {
+    if let Err(e) = helpers::init(&mut st) {
+        return e.status();
+    };
+    println!("Hello UEFI!");
     loop {
         unsafe { core::arch::asm!("hlt") };
     }
