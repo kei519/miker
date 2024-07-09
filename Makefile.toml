@@ -1,0 +1,93 @@
+[config]
+# Skips default builds
+skip_core_tasks = true
+default_to_workspace = false
+
+[env]
+DISK_IMG = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/disk.img"
+MOUNT_POINT = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/mnt"
+DEFAULT_OVMF_VARS = "DEFAULT_OVMF_VARS.fd"
+OVMF_VARS = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/OVMF_VARS.fd"
+
+LOADER_NAME = "loader"
+LOADER_TARGET = "x86_64-unknown-uefi"
+LOADER_PATH = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${LOADER_TARGET}/debug/${LOADER_NAME}.efi"
+
+[tasks.default]
+dependencies = ["release"]
+
+[tasks.release]
+dependencies = ["release-loader"]
+
+[tasks.build]
+dependencies = ["build-loader"]
+
+[tasks.run]
+dependencies = ["make-image", "check-ovmf_vars"]
+script = '''
+#!/bin/bash -ex
+
+qemu-system-x86_64 \
+    -m 256M \
+    -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE.fd \
+    -drive if=pflash,format=raw,file="${OVMF_VARS}" \
+    -drive if=ide,index=0,media=disk,format=raw,file="${DISK_IMG}" \
+    -monitor stdio \
+    ${@}
+'''
+
+[tasks.make-image]
+run_task = { name = ["make-image-without-umount", "umount"], fork = true, cleanup_task = "umount" }
+
+[tasks.make-image-without-umount]
+dependencies = ["build"]
+script = '''
+#!/bin/bash -ex
+
+qemu-img create -f raw "${DISK_IMG}" 200M
+mkfs.fat -n "${CARGO_MAKE_PROJECT_NAME^^}" -s 2 -f 2 -R 32 -F 32 ${DISK_IMG}
+
+if [ ! -d "${MOUNT_POINT}" ]; then
+    mkdir -p "${MOUNT_POINT}"
+fi
+sudo mount -o uid="${UID}",gid=$(id -g $(whoami)) "${DISK_IMG}" "${MOUNT_POINT}"
+
+LOADER_DEPLOY_PATH="${MOUNT_POINT}/EFI/BOOT/BOOTx64.EFI"
+mkdir -p $(dirname "${LOADER_DEPLOY_PATH}")
+cp "${LOADER_PATH}" "${LOADER_DEPLOY_PATH}"
+
+sleep 0.5
+'''
+
+[tasks.build-loader]
+command = "cargo"
+args = ["build", "--package=${LOADER_NAME}", "--target=${LOADER_TARGET}"]
+
+[tasks.release-loader]
+command = "cargo"
+args = ["build", "--release", "--package=${LOADER_NAME}", "--target=${LOADER_TARGET}"]
+
+[tasks.check-ovmf_vars]
+script = '''
+#!/bin/bash -ex
+
+if [ ! -f "${OVMF_VARS}" ]; then
+    cp "${DEFAULT_OVMF_VARS}" "${OVMF_VARS}"
+fi
+'''
+
+[tasks.clean-ovmf]
+script = '''
+if [ -f "${OVMF_VARS}" ]; then
+    rm -f "${OVMF_VARS}"
+fi
+'''
+
+[tasks.umount]
+script = '''
+#!/bin/bash -ex
+
+if /usr/bin/mount | grep "${MOUNT_POINT}"; then
+    sudo umount "${MOUNT_POINT}"
+fi
+'''
