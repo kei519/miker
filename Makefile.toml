@@ -1,3 +1,5 @@
+# Update release, build and make-image-without-umount tasks when adding new crates.
+
 [config]
 # Skips default builds
 skip_core_tasks = true
@@ -13,17 +15,23 @@ LOADER_NAME = "loader"
 LOADER_TARGET = "x86_64-unknown-uefi"
 LOADER_PATH = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${LOADER_TARGET}/debug/${LOADER_NAME}.efi"
 
+LOADER2_NAME = "loader2"
+LOADER2_TARGET = "x86_64-unknown-none"
+LOADER2_PATH = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${LOADER2_TARGET}/debug/${LOADER2_NAME}"
+
 [tasks.default]
 dependencies = ["release"]
 
 [tasks.release]
 dependencies = [
     { name = "release", path = "loader" },
+    { name = "release", path = "loader2" },
 ]
 
 [tasks.build]
 dependencies = [
     { name = "build", path = "loader" },
+    { name = "build", path = "loader2" },
 ]
 
 [tasks.run]
@@ -59,6 +67,9 @@ sudo mount -o uid="${UID}",gid=$(id -g $(whoami)) "${DISK_IMG}" "${MOUNT_POINT}"
 LOADER_DEPLOY_PATH="${MOUNT_POINT}/EFI/BOOT/BOOTx64.EFI"
 mkdir -p $(dirname "${LOADER_DEPLOY_PATH}")
 cp "${LOADER_PATH}" "${LOADER_DEPLOY_PATH}"
+
+LOADER2_DEPLOY_PATH="${MOUNT_POINT}/loader2"
+cp "${LOADER2_PATH}" "${LOADER2_DEPLOY_PATH}"
 
 sleep 0.5
 '''

@@ -1,0 +1,22 @@
+[env]
+CONFIG_PATH = "./.cargo/config.toml"
+
+[tasks.release]
+command = "cargo"
+args = ["build", "--release", "--config ${CONFIG_PATH}"]
+
+[tasks.build]
+dependencies = ["split-debuginfo"]
+
+[tasks.build-with-debuginfo]
+command = "cargo"
+args = ["build", "--config", "${CONFIG_PATH}"]
+
+[tasks.split-debuginfo]
+dependencies = ["build-with-debuginfo"]
+script = '''
+#!/bin/bash -ex
+
+objcopy --only-keep-debug "${LOADER2_PATH}" "${LOADER2_PATH}.debug"
+strip --strip-all "${LOADER2_PATH}"
+'''
