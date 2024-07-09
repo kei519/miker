@@ -1,0 +1,12 @@
+[package]
+name = "loader"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+readme.workspace = true
+
+[[bin]]
+name = "loader"
+test = false
+bench = false
