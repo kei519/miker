@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["loader", "loader2"]
+members = ["loader", "loader2", "util"]
 
 [workspace.package]
 version = "0.0.0"
