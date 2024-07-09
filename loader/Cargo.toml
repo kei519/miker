@@ -13,3 +13,4 @@ bench = false
 
 [dependencies]
 uefi = "*"
+util = { path = "../util" }
