@@ -47,8 +47,16 @@ qemu-system-x86_64 \
     ${@}
 '''
 
+[tasks.release-run]
+extend = "run"
+dependencies = ["make-image-release", "check-ovmf_vars"]
+
 [tasks.make-image]
 run_task = { name = ["make-image-without-umount", "umount"], fork = true, cleanup_task = "umount" }
+workspace = false
+
+[tasks.make-image-release]
+run_task = { name = ["make-image-release-without-umount", "umount"], fork = true, cleanup_task = "umount" }
 workspace = false
 
 [tasks.make-image-without-umount]
@@ -74,6 +82,13 @@ cp "${LOADER2_PATH}" "${LOADER2_DEPLOY_PATH}"
 
 sleep 0.5
 '''
+
+[tasks.make-image-release-without-umount]
+extend = "make-image-without-umount"
+dependencies = ["member-release"]
+[tasks.make-image-release-without-umount.env]
+LOADER_PATH = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${LOADER_TARGET}/release/${LOADER_NAME}.efi"
+LOADER2_PATH = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${LOADER2_TARGET}/release/${LOADER2_NAME}"
 
 [tasks.check-ovmf_vars]
 workspace = false
