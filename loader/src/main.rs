@@ -116,7 +116,7 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
     st.boot_services()
         .allocate_pages(
             AllocateType::Address(start),
-            MemoryType::BOOT_SERVICES_CODE,
+            MemoryType::LOADER_CODE,
             num_pages as _,
         )
         .map_err(|e| error!(e))?;
