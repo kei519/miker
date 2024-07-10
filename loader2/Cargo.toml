@@ -10,3 +10,6 @@ readme.workspace = true
 name = "loader2"
 test = false
 bench = false
+
+[dependencies]
+util = { path = "../util" }

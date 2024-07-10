@@ -4,13 +4,14 @@
 use core::{
     any,
     fmt::{Debug, Display},
-    mem::transmute,
+    mem::{transmute, MaybeUninit},
     ptr, slice,
 };
 
 use uefi::{
     cstr16, helpers, println,
     proto::{
+        console::gop::{self, GraphicsOutput},
         loaded_image::LoadedImage,
         media::{
             file::{File, FileAttribute, FileInfo, FileMode, FileType},
@@ -21,12 +22,13 @@ use uefi::{
     table::{
         boot::{
             AllocateType, MemoryType, OpenProtocolAttributes, OpenProtocolParams, ScopedProtocol,
+            SearchType,
         },
         Boot, SystemTable,
     },
-    CStr16, Error, Handle, Status,
+    CStr16, Error, Handle, Identify, Status,
 };
-use util::{Elf64Ehdr, Elf64Phdr, ElfProgType};
+use util::{Elf64Ehdr, Elf64Phdr, ElfProgType, FrameBufferInfo, PixelFormat};
 
 /// 2nd loader path in the boot device.
 const SECOND_LOADER_PATH: &CStr16 = cstr16!("\\loader2");
@@ -134,11 +136,46 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
 
     println!("succeeded loading 2nd loader to {:08x}-{:08x}", start, end);
 
+    // Get frame buffer info.
+    // We need to get handle for taking GraphicsOutput.
+    let mut graphics_handles = [MaybeUninit::uninit(); 64];
+    let handle_len = st
+        .boot_services()
+        .locate_handle(
+            SearchType::ByProtocol(&GraphicsOutput::GUID),
+            Some(&mut graphics_handles[..]),
+        )
+        .map_err(|e| error!(e))?;
+    // If there is no handles for graphics, we can't get the info.
+    if handle_len < 1 {
+        return Err(error!(Error::new(Status::NOT_FOUND, ())));
+    }
+
+    // Now ready to ge GraphicsOutput.
+    let mut graphics =
+        get_protocol::<GraphicsOutput>(&st, graphics_handles[0].assume_init(), image)?;
+    let mode_info = graphics.current_mode_info();
+    let format = match mode_info.pixel_format() {
+        gop::PixelFormat::Rgb => PixelFormat::Rgb,
+        gop::PixelFormat::Bgr => PixelFormat::Bgr,
+        gop::PixelFormat::Bitmask => PixelFormat::Bitmask,
+        gop::PixelFormat::BltOnly => PixelFormat::Bitonly,
+    };
+    let fb_info = FrameBufferInfo {
+        format,
+        horizontal_resolution: mode_info.resolution().0,
+        vertical_resolution: mode_info.resolution().1,
+        pixels_per_scanline: mode_info.stride(),
+        frame_buffer: graphics.frame_buffer().as_mut_ptr() as _,
+    };
+    drop(graphics);
+
     // Exit UEFI boot service to pass the control to 2nd loader.
     let _ = st.exit_boot_services(MemoryType::LOADER_DATA);
 
-    let loader2_entry: extern "sysv64" fn() -> ! = transmute(elf_header.entry);
-    loader2_entry();
+    type EntryFn = extern "sysv64" fn(&FrameBufferInfo) -> !;
+    let loader2_entry: EntryFn = transmute(elf_header.entry);
+    loader2_entry(&fb_info);
 }
 
 /// Get protocol `P` from boot servieces.
