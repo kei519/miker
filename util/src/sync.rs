@@ -115,7 +115,7 @@ impl<T: Copy> OnceStatic<T> {
     /// # Safety
     ///
     /// Calling this method with uninitialized value is undefined behavior.
-    pub fn get_uncecked(&self) -> T {
+    pub unsafe fn get_uncecked(&self) -> T {
         *unsafe { (*self.data.get()).assume_init_ref() }
     }
 }
