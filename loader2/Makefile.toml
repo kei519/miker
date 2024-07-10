@@ -3,7 +3,7 @@ CONFIG_PATH = "./.cargo/config.toml"
 
 [tasks.release]
 command = "cargo"
-args = ["build", "--release", "--config ${CONFIG_PATH}"]
+args = ["build", "--release", "--config", "${CONFIG_PATH}"]
 
 [tasks.build]
 dependencies = ["split-debuginfo"]
