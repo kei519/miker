@@ -2,3 +2,4 @@
 
 pub mod elf;
 pub mod screen;
+pub mod sync;
