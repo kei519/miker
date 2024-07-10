@@ -3,10 +3,11 @@
 
 use core::slice;
 
+use uefi::table::boot::MemoryMap;
 use util::FrameBufferInfo;
 
 #[no_mangle]
-fn _start(fb_info: &FrameBufferInfo) {
+fn _start(fb_info: &FrameBufferInfo, _: &MemoryMap) {
     // Draw whole screen with green.
     let fb = unsafe {
         slice::from_raw_parts_mut(
