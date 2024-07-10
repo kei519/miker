@@ -141,6 +141,14 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
     loader2_entry();
 }
 
+/// Get protocol `P` from boot servieces.
+///
+/// # Arguments
+///
+/// * `st` - System table to get boot services.
+/// * `handle` - The handle for the protocol to open.
+/// * `agent` - The handles of the calling agent.
+///             For application, including loader, this is the image handle.
 unsafe fn get_protocol<P: Protocol>(
     st: &SystemTable<Boot>,
     handle: Handle,
