@@ -1,23 +1,23 @@
 #![no_std]
 #![no_main]
 
-use core::slice;
-
 use uefi::table::boot::MemoryMap;
-use util::screen::FrameBufferInfo;
+use util::{
+    graphics::GlayscalePixelWrite as _,
+    screen::{FrameBufferInfo, GlayscaleScreen},
+};
 
 #[no_mangle]
 fn _start(fb_info: &FrameBufferInfo, _: &MemoryMap) {
-    // Draw whole screen with green.
-    let fb = unsafe {
-        slice::from_raw_parts_mut(
-            fb_info.frame_buffer as *mut u32,
-            fb_info.pixels_per_scanline * fb_info.vertical_resolution,
-        )
-    };
-    for pixel in fb {
-        *pixel = 0x008800;
+    let mut screen = GlayscaleScreen::new(fb_info.clone());
+    // Draw whole screen with gray.
+    let size = screen.range();
+    for x in 0..size.0 {
+        for y in 0..size.1 {
+            screen.write((x, y), 0x88);
+        }
     }
+
     loop {
         unsafe { core::arch::asm!("hlt") };
     }
