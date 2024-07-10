@@ -4,7 +4,7 @@
 use core::slice;
 
 use uefi::table::boot::MemoryMap;
-use util::FrameBufferInfo;
+use util::screen::FrameBufferInfo;
 
 #[no_mangle]
 fn _start(fb_info: &FrameBufferInfo, _: &MemoryMap) {

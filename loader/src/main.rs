@@ -28,7 +28,10 @@ use uefi::{
     },
     CStr16, Error, Handle, Identify, Status,
 };
-use util::{Elf64Ehdr, Elf64Phdr, ElfProgType, FrameBufferInfo, PixelFormat};
+use util::{
+    elf::{Elf64Ehdr, Elf64Phdr, ElfProgType},
+    screen::{FrameBufferInfo, PixelFormat},
+};
 
 /// 2nd loader path in the boot device.
 const SECOND_LOADER_PATH: &CStr16 = cstr16!("\\loader2");
