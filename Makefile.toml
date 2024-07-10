@@ -3,9 +3,12 @@
 [config]
 # Skips default builds
 skip_core_tasks = true
-default_to_workspace = false
+skip_git_env_info = true
+skip_rust_env_info = true
 
 [env]
+CARGO_MAKE_WORKSPACE_SKIP_MEMBERS = ["util"]
+
 DISK_IMG = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/disk.img"
 MOUNT_POINT = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/mnt"
 DEFAULT_OVMF_VARS = "DEFAULT_OVMF_VARS.fd"
@@ -20,22 +23,18 @@ LOADER2_TARGET = "x86_64-unknown-none"
 LOADER2_PATH = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${LOADER2_TARGET}/debug/${LOADER2_NAME}"
 
 [tasks.default]
-dependencies = ["release"]
+workspace = false
+dependencies = ["member-release"]
 
-[tasks.release]
-dependencies = [
-    { name = "release", path = "loader" },
-    { name = "release", path = "loader2" },
-]
+[tasks.member-release]
+run_task = { name = "release", fork = true, paralell = true }
 
-[tasks.build]
-dependencies = [
-    { name = "build", path = "loader" },
-    { name = "build", path = "loader2" },
-]
+[tasks.member-build]
+run_task = { name = "build", fork = true, parallel = true }
 
 [tasks.run]
 dependencies = ["make-image", "check-ovmf_vars"]
+workspace = false
 script = '''
 #!/bin/bash -ex
 
@@ -50,9 +49,11 @@ qemu-system-x86_64 \
 
 [tasks.make-image]
 run_task = { name = ["make-image-without-umount", "umount"], fork = true, cleanup_task = "umount" }
+workspace = false
 
 [tasks.make-image-without-umount]
-dependencies = ["build"]
+dependencies = ["member-build"]
+workspace = false
 script = '''
 #!/bin/bash -ex
 
@@ -75,6 +76,7 @@ sleep 0.5
 '''
 
 [tasks.check-ovmf_vars]
+workspace = false
 script = '''
 #!/bin/bash -ex
 
@@ -84,6 +86,7 @@ fi
 '''
 
 [tasks.clean-ovmf]
+workspace = false
 script = '''
 if [ -f "${OVMF_VARS}" ]; then
     rm -f "${OVMF_VARS}"
@@ -91,6 +94,7 @@ fi
 '''
 
 [tasks.umount]
+workspace = false
 script = '''
 #!/bin/bash -ex
 
