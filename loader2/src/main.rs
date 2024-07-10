@@ -3,7 +3,7 @@
 
 use uefi::table::boot::MemoryMap;
 use util::{
-    graphics::GlayscalePixelWrite as _,
+    graphics::{GlayscalePixelWrite as _, GlayscalePrint as _},
     screen::{FrameBufferInfo, GlayscaleScreen},
 };
 
@@ -14,9 +14,11 @@ fn _start(fb_info: &FrameBufferInfo, _: &MemoryMap) {
     let size = screen.range();
     for x in 0..size.0 {
         for y in 0..size.1 {
-            screen.write((x, y), 0x88);
+            screen.write((x, y), 0x00);
         }
     }
+
+    screen.print("Hello 2nd loader!", (0, 0));
 
     loop {
         unsafe { core::arch::asm!("hlt") };
