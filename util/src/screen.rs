@@ -1,3 +1,5 @@
+use core::slice;
+
 use crate::graphics::GlayscalePixelWrite;
 
 #[derive(Debug, Clone)]
@@ -28,10 +30,24 @@ pub struct GlayscaleScreen {
 impl GlayscaleScreen {
     /// Constructs [Screen] with [FrameBufferInfo] but if `info.format` is either
     /// [PixelFromat::Bitmask] or [PixelFormat::Bitonly], causes `panic`.
+    ///
+    /// When constructing, blacks out the screen.
     pub fn new(info: FrameBufferInfo) -> Self {
         if matches!(info.format, PixelFormat::Bitmask | PixelFormat::Bitonly) {
             panic!("PixelFormat bitmask and bitonly are not supported");
         }
+
+        // Black out the whole screen.
+        let buf = unsafe {
+            slice::from_raw_parts_mut(
+                info.frame_buffer as *mut u32,
+                info.pixels_per_scanline * info.vertical_resolution,
+            )
+        };
+        for pixel in buf {
+            *pixel = 0;
+        }
+
         Self { info }
     }
 }

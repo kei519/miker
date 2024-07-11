@@ -13,13 +13,6 @@ use util::{
 #[no_mangle]
 fn _start(fb_info: &FrameBufferInfo, memmap: &MemoryMap) {
     let mut screen = GlayscaleScreen::new(fb_info.clone());
-    // Draw whole screen with gray.
-    let size = screen.range();
-    for x in 0..size.0 {
-        for y in 0..size.1 {
-            screen.write((x, y), 0x00);
-        }
-    }
 
     // Display memmap
     let mut buf = [0; 256];
