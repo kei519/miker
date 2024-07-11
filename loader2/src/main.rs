@@ -8,11 +8,15 @@ use util::{
     buffer::StrBuf,
     graphics::{GlayscalePixelWrite as _, GlayscalePrint as _},
     screen::{FrameBufferInfo, GlayscaleScreen},
+    sync::OnceStatic,
 };
+
+static FB_INFO: OnceStatic<FrameBufferInfo> = OnceStatic::new();
 
 #[no_mangle]
 fn _start(fb_info: &FrameBufferInfo, memmap: &MemoryMap) {
     let mut screen = GlayscaleScreen::new(fb_info.clone());
+    FB_INFO.init(fb_info.clone());
 
     // Display memmap
     let mut buf = [0; 256];
@@ -43,7 +47,15 @@ fn _start(fb_info: &FrameBufferInfo, memmap: &MemoryMap) {
 }
 
 #[panic_handler]
-fn _panic_handler(_: &core::panic::PanicInfo) -> ! {
+fn _panic_handler(info: &core::panic::PanicInfo) -> ! {
+    if FB_INFO.is_initialized() {
+        let mut screen = GlayscaleScreen::new(FB_INFO.as_ref().clone());
+        let mut buf = [0; 4 * 1024];
+        let mut buf = StrBuf::new(&mut buf);
+        let _ = write!(buf, "{:#}", info);
+        screen.print(buf.to_str(), (0, 0))
+    }
+
     loop {
         unsafe { core::arch::asm!("hlt") };
     }
