@@ -93,7 +93,8 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
         .boot_services()
         .allocate_pages(
             AllocateType::AnyPages,
-            MemoryType::LOADER_DATA,
+            // Allocating BOOT_SERVICES_DATA for temp data eliminates the need to free pages.
+            MemoryType::BOOT_SERVICES_DATA,
             num_tmp_pages,
         )
         .map_err(|e| error!(e))?;
@@ -139,10 +140,6 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
 
     println!("succeeded loading 2nd loader to {:08x}-{:08x}", start, end);
 
-    let memmap = st
-        .boot_services()
-        .memory_map(MemoryType::LOADER_DATA)
-        .map_err(|e| error!(e))?;
 
     // Get frame buffer info.
     // We need to get handle for taking GraphicsOutput.
@@ -179,7 +176,7 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
     drop(graphics);
 
     // Exit UEFI boot service to pass the control to 2nd loader.
-    let _ = st.exit_boot_services(MemoryType::LOADER_DATA);
+    let (_, memmap) = st.exit_boot_services(MemoryType::LOADER_DATA);
 
     type EntryFn = extern "sysv64" fn(&FrameBufferInfo, &MemoryMap) -> !;
     let loader2_entry: EntryFn = transmute(elf_header.entry);
