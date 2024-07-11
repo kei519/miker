@@ -19,6 +19,7 @@ pub enum Error {
     NotSupportedRevision(u8),
     /// Represents the table is unaligned.
     UnAligned,
+    IndexOutOfRange,
 }
 
 /// Root System Description Pointer structure.
@@ -145,6 +146,42 @@ impl TableHeader {
     }
 }
 
+/// Represents whole description tables.
+#[derive(Debug, Clone, Copy)]
+pub enum DescriptionTable {
+    Xsdt(&'static Xsdt),
+}
+
+impl DescriptionTable {
+    /// Converts to [DescriptionTable] from address `ptr`.
+    fn from_ptr(ptr: usize) -> Result<Self> {
+        let header = TableHeader::from_ptr(ptr as *const _)?;
+        match &header.sig {
+            b"XSDT" => Ok(Self::Xsdt(Xsdt::from_header(header))),
+            // TODO: Implement FACP ASAP.
+            b"FACP" => todo!(),
+            // TODO: Implement below tables.
+            b"APIC" | b"BERT" | b"BGRT" | b"CCEL" | b"CPEP" | b"DSDT" | b"ECDT" | b"EINJ"
+            | b"ERST" | b"FACS" | b"GTDT" | b"HEST" | b"MISC" | b"MSCT" | b"MPST" | b"NFIT"
+            | b"PCCT" | b"PHAT" | b"PMTT" | b"PPTT" | b"PSDT" | b"RASF" | b"RAS2" | b"RSDT"
+            | b"SBST" | b"SDEV" | b"SLIT" | b"SRAT" | b"SSDT" | b"SVKL" | b"AEST" | b"AGDI"
+            | b"APMT" | b"BDAT" | b"BOOT" | b"CEDT" | b"CSRT" | b"DBGP" | b"DBG2" | b"DMAR"
+            | b"DRTM" | b"DTPR" | b"ETDT" | b"HPET" | b"IBFT" | b"IERS" | b"IORT" | b"IVRS"
+            | b"KEYP" | b"LPIT" | b"MCFG" | b"MCHI" | b"MHSP" | b"MPAM" | b"MSDM" | b"NBFT"
+            | b"PRMT" | b"PGRT" | b"SDEI" | b"SLIC" | b"SPCR" | b"SPMI" | b"STAO" | b"SWFT"
+            | b"TCPA" | b"TPM2" | b"UEFI" | b"WAET" | b"WDAT" | b"WDDT" | b"WDRT" | b"WPBT"
+            | b"WSMT" | b"XENV" => Err(Error::NotSupportedTable(header.sig)),
+            _ => {
+                if header.sig.starts_with(b"OEM") {
+                    Err(Error::NotSupportedTable(header.sig))
+                } else {
+                    Err(Error::InvalidSignature)
+                }
+            }
+        }
+    }
+}
+
 /// Represents Extended System Description Table.
 #[repr(C, packed)]
 pub struct Xsdt {
@@ -159,11 +196,13 @@ impl Xsdt {
     }
 
     /// Returns `index`-th entry if it exists.
-    pub fn entry(&self, index: usize) -> Option<u64> {
+    pub fn entry(&self, index: usize) -> Result<DescriptionTable> {
         if index < self.entries_count() {
-            Some(self.entry[index])
+            Ok(DescriptionTable::from_ptr(unsafe {
+                ptr::addr_of!(self.entry[index]).read_unaligned()
+            } as _)?)
         } else {
-            None
+            Err(Error::IndexOutOfRange)
         }
     }
 
@@ -186,6 +225,12 @@ impl Xsdt {
             return Err(Error::InvalidSignature);
         }
 
+        Ok(Self::from_header(header))
+    }
+
+    /// Returns a reference to [Xsdt] from the header `header` of it. This funtion assumes `header`
+    /// is a proper one for XSDT, so it does NOT check any conditions.
+    fn from_header(header: &'static TableHeader) -> &'static Xsdt {
         // Make fat pointer because `Xsdt` contains an unsized field.
         let fat_ptr: &[u64] = unsafe {
             slice::from_raw_parts(
@@ -193,7 +238,7 @@ impl Xsdt {
                 header.entries_count(),
             )
         };
-        Ok(unsafe { &*(fat_ptr as *const _ as *const Xsdt) })
+        unsafe { &*(fat_ptr as *const _ as *const Xsdt) }
     }
 }
 
@@ -215,19 +260,22 @@ pub struct XsdtEntryIter {
 }
 
 impl Iterator for XsdtEntryIter {
-    type Item = u64;
+    type Item = DescriptionTable;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.count <= self.index {
-            None
-        } else {
-            let ret = unsafe {
+        loop {
+            if self.count <= self.index {
+                return None;
+            } else if let Ok(ret) = DescriptionTable::from_ptr(unsafe {
                 self.start
                     .byte_add(self.index * mem::size_of::<u64>())
                     .read_unaligned()
-            };
+            } as _)
+            {
+                self.index += 1;
+                return Some(ret);
+            }
             self.index += 1;
-            Some(ret)
         }
     }
 }
