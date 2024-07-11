@@ -1,7 +1,7 @@
 use crate::font_data;
 
 /// A trait for painting pixels with grayscale.
-pub trait GlayscalePixelWrite {
+pub trait GrayscalePixelWrite {
     /// Paints `pos` with `color` if `pos` is in the range.
     ///
     /// Returns if `pos` is in the range.
@@ -17,7 +17,7 @@ pub trait GlayscalePixelWrite {
 }
 
 /// A trait for printing string with grayscale color.
-pub trait GlayscalePrint: GlayscalePixelWrite {
+pub trait GrayscalePrint: GrayscalePixelWrite {
     /// Prints `string` at `pos` (x, y).
     fn print(&mut self, string: &str, pos: (usize, usize)) {
         let (width, height) = self.range();
@@ -39,4 +39,4 @@ pub trait GlayscalePrint: GlayscalePixelWrite {
     }
 }
 
-impl<T: GlayscalePixelWrite> GlayscalePrint for T {}
+impl<T: GrayscalePixelWrite> GrayscalePrint for T {}

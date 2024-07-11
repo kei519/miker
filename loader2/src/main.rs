@@ -6,8 +6,8 @@ use core::fmt::Write as _;
 use uefi::table::boot::MemoryMap;
 use util::{
     buffer::StrBuf,
-    graphics::{GlayscalePixelWrite as _, GlayscalePrint as _},
-    screen::{FrameBufferInfo, GlayscaleScreen},
+    graphics::{GrayscalePixelWrite as _, GrayscalePrint as _},
+    screen::{FrameBufferInfo, GrayscaleScreen},
     sync::OnceStatic,
 };
 
@@ -15,7 +15,7 @@ static FB_INFO: OnceStatic<FrameBufferInfo> = OnceStatic::new();
 
 #[no_mangle]
 fn _start(fb_info: &FrameBufferInfo, memmap: &MemoryMap) {
-    let mut screen = GlayscaleScreen::new(fb_info.clone());
+    let mut screen = GrayscaleScreen::new(fb_info.clone());
     FB_INFO.init(fb_info.clone());
 
     // Display memmap
@@ -49,7 +49,7 @@ fn _start(fb_info: &FrameBufferInfo, memmap: &MemoryMap) {
 #[panic_handler]
 fn _panic_handler(info: &core::panic::PanicInfo) -> ! {
     if FB_INFO.is_initialized() {
-        let mut screen = GlayscaleScreen::new(FB_INFO.as_ref().clone());
+        let mut screen = GrayscaleScreen::new(FB_INFO.as_ref().clone());
         let mut buf = [0; 4 * 1024];
         let mut buf = StrBuf::new(&mut buf);
         let _ = write!(buf, "{:#}", info);

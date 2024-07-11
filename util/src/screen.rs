@@ -1,6 +1,6 @@
 use core::slice;
 
-use crate::graphics::GlayscalePixelWrite;
+use crate::graphics::GrayscalePixelWrite;
 
 #[derive(Debug, Clone)]
 pub struct FrameBufferInfo {
@@ -23,11 +23,11 @@ pub enum PixelFormat {
 ///
 /// Pixelf formats [PixelFormat::Bitmask] and [PixelFormat::Bitonly] are not supported.
 #[derive(Debug)]
-pub struct GlayscaleScreen {
+pub struct GrayscaleScreen {
     info: FrameBufferInfo,
 }
 
-impl GlayscaleScreen {
+impl GrayscaleScreen {
     /// Constructs [Screen] with [FrameBufferInfo] but if `info.format` is either
     /// [PixelFromat::Bitmask] or [PixelFormat::Bitonly], causes `panic`.
     ///
@@ -52,7 +52,7 @@ impl GlayscaleScreen {
     }
 }
 
-impl GlayscalePixelWrite for GlayscaleScreen {
+impl GrayscalePixelWrite for GrayscaleScreen {
     fn write(&mut self, pos: (usize, usize), color: u8) -> bool {
         if !(0..self.info.pixels_per_scanline).contains(&pos.0)
             || !(0..self.info.vertical_resolution).contains(&pos.1)
