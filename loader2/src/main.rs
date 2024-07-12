@@ -3,8 +3,9 @@
 
 use core::fmt::Write as _;
 
-use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
+use uefi::table::{boot::MemoryMap, cfg::ACPI2_GUID, Runtime, SystemTable};
 use util::{
+    acpi::Rsdp,
     buffer::StrBuf,
     graphics::{GrayscalePixelWrite as _, GrayscalePrint as _},
     screen::{FrameBufferInfo, GrayscaleScreen},
@@ -14,31 +15,38 @@ use util::{
 static FB_INFO: OnceStatic<FrameBufferInfo> = OnceStatic::new();
 
 #[no_mangle]
-fn _start(fb_info: &FrameBufferInfo, memmap: &MemoryMap, _: SystemTable<Runtime>) {
+fn _start(fb_info: &FrameBufferInfo, _memmap: &'static MemoryMap, runtime: SystemTable<Runtime>) {
     let mut screen = GrayscaleScreen::new(fb_info.clone());
     FB_INFO.init(fb_info.clone());
 
     // Display memmap
-    let mut buf = [0; 256];
+    let mut buf = [0; 4096];
     // 1 memory descritpor length in display.
     let item_len = 60;
 
-    let col_num = screen.range().0 / 8;
     let row_num = screen.range().1 / 16;
-    let item_per_row = col_num / item_len;
-    for (count, desc) in memmap.entries().enumerate().take(row_num * item_per_row) {
-        let mut buf = StrBuf::new(&mut buf);
-        let _ = write!(
-            buf,
-            "{:016x}-{:016x}: {:?}",
-            desc.phys_start,
-            desc.phys_start + desc.page_count * 4096,
-            desc.ty,
-        );
-        // Calculate start position.
-        let col = count / row_num;
-        let row = count % row_num;
-        screen.print(buf.to_str(), (col * item_len * 8, row * 16));
+
+    let rsdp_ptr = runtime
+        .config_table()
+        .iter()
+        .find_map(|config| {
+            if config.guid == ACPI2_GUID {
+                Some(config.address)
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| panic!("There is no ACPI2 entry."));
+    // Safety: UEFI pass the proper one.
+    let rsdp = unsafe { Rsdp::from_ptr(rsdp_ptr.cast()).unwrap() };
+
+    // let entry = rsdp.xsdt().unwrap().entry(0).unwrap();
+    let mut buf = StrBuf::new(&mut buf);
+    let _ = write!(buf, "{:#?}", rsdp);
+    for (i, line) in buf.to_str().lines().enumerate() {
+        let row = i % row_num;
+        let col = i / row_num;
+        screen.print(line, (col * item_len * 8, row * 16));
     }
 
     loop {
