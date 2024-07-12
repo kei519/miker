@@ -139,10 +139,9 @@ impl TableHeader {
         Ok(ret)
     }
 
-    /// Returns the number of entries in the table under this header field.
-    fn entries_count(&self) -> usize {
-        // Each `entry` field is a pointer to the next table, that is `u64.
-        (self.len as usize - mem::size_of::<TableHeader>()) / mem::size_of::<u64>()
+    /// Returns the length of entries, in bytes, in the table under this header field.
+    fn entries_len(&self) -> usize {
+        self.len as usize - mem::size_of::<TableHeader>()
     }
 }
 
@@ -192,7 +191,7 @@ pub struct Xsdt {
 impl Xsdt {
     /// Returns the number of entries in the table.
     pub fn entries_count(&self) -> usize {
-        self.header.entries_count()
+        self.header.entries_len() / mem::size_of::<u64>()
     }
 
     /// Returns `index`-th entry if it exists.
@@ -235,7 +234,7 @@ impl Xsdt {
         let fat_ptr: &[u64] = unsafe {
             slice::from_raw_parts(
                 (header as *const TableHeader).cast(),
-                header.entries_count(),
+                header.entries_len() / mem::size_of::<u64>(),
             )
         };
         unsafe { &*(fat_ptr as *const _ as *const Xsdt) }
