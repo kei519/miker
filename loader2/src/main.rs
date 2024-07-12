@@ -7,7 +7,7 @@ use uefi::table::{boot::MemoryMap, cfg::ACPI2_GUID, Runtime, SystemTable};
 use util::{
     acpi::Rsdp,
     buffer::StrBuf,
-    graphics::{GrayscalePixelWrite as _, GrayscalePrint as _},
+    graphics::GrayscalePrint as _,
     screen::{FrameBufferInfo, GrayscaleScreen},
     sync::OnceStatic,
 };
@@ -22,9 +22,6 @@ fn _start(fb_info: &FrameBufferInfo, _memmap: &'static MemoryMap, runtime: Syste
     // Display memmap
     let mut buf = [0; 4096];
     // 1 memory descritpor length in display.
-    let item_len = 60;
-
-    let row_num = screen.range().1 / 16;
 
     let rsdp_ptr = runtime
         .config_table()
@@ -42,12 +39,18 @@ fn _start(fb_info: &FrameBufferInfo, _memmap: &'static MemoryMap, runtime: Syste
 
     // let entry = rsdp.xsdt().unwrap().entry(0).unwrap();
     let mut buf = StrBuf::new(&mut buf);
-    let _ = write!(buf, "{:#?}", rsdp);
-    for (i, line) in buf.to_str().lines().enumerate() {
-        let row = i % row_num;
-        let col = i / row_num;
-        screen.print(line, (col * item_len * 8, row * 16));
+    let _ = writeln!(buf, "RSDT entries:");
+    for entry in rsdp.rsdt().unwrap().entries() {
+        let _ = writeln!(buf, "{:?}", entry);
     }
+    let _ = writeln!(buf);
+
+    let _ = writeln!(buf, "XSDT entries:");
+    for entry in rsdp.xsdt().unwrap().entries() {
+        let _ = writeln!(buf, "{:?}", entry);
+    }
+
+    screen.print(buf.to_str(), (0, 0));
 
     loop {
         unsafe { core::arch::asm!("hlt") };
