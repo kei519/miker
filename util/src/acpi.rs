@@ -160,7 +160,7 @@ pub enum DescriptionTable {
     Rsdt(&'static Rsdt),
     Xsdt(&'static Xsdt),
     Fadt(&'static Fadt),
-    Apic(&'static Madt),
+    Madt(&'static Madt),
     Unsupported(UnsupportedTable),
 }
 
@@ -172,7 +172,7 @@ impl DescriptionTable {
             b"RSDT" => Ok(Self::Rsdt(Rsdt::from_header(header))),
             b"XSDT" => Ok(Self::Xsdt(Xsdt::from_header(header))),
             b"FACP" => Ok(Self::Fadt(Fadt::from_header(header))),
-            b"APIC" => Ok(Self::Apic(Madt::from_header(header))),
+            b"APIC" => Ok(Self::Madt(Madt::from_header(header))),
             // TODO: Implement below tables.
             b"BERT" | b"BGRT" | b"CCEL" | b"CPEP" | b"DSDT" | b"ECDT" | b"EINJ" | b"ERST"
             | b"FACS" | b"GTDT" | b"HEST" | b"MISC" | b"MSCT" | b"MPST" | b"NFIT" | b"PCCT"
