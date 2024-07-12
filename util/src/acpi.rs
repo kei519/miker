@@ -150,6 +150,7 @@ impl TableHeader {
 #[derive(Debug, Clone, Copy)]
 pub enum DescriptionTable {
     Xsdt(&'static Xsdt),
+    Fadt(&'static Fadt),
 }
 
 impl DescriptionTable {
@@ -158,8 +159,7 @@ impl DescriptionTable {
         let header = TableHeader::from_ptr(ptr as *const _)?;
         match &header.sig {
             b"XSDT" => Ok(Self::Xsdt(Xsdt::from_header(header))),
-            // TODO: Implement FACP ASAP.
-            b"FACP" => todo!(),
+            b"FACP" => Ok(Self::Fadt(Fadt::from_header(header))),
             // TODO: Implement below tables.
             b"APIC" | b"BERT" | b"BGRT" | b"CCEL" | b"CPEP" | b"DSDT" | b"ECDT" | b"EINJ"
             | b"ERST" | b"FACS" | b"GTDT" | b"HEST" | b"MISC" | b"MSCT" | b"MPST" | b"NFIT"
@@ -277,6 +277,249 @@ impl Iterator for XsdtEntryIter {
             }
             self.index += 1;
         }
+    }
+}
+
+#[repr(C, packed)]
+pub struct Fadt {
+    header: TableHeader,
+    pub firmware_ctrl: u32,
+    pub dsdt: u32,
+    pub reserved0: u8,
+    pub preferred_pm_profile: u8,
+    pub sci_int: u16,
+    pub smi_cmd: u32,
+    pub acpi_enable: u8,
+    pub acpi_disable: u8,
+    pub s4bios_req: u8,
+    pub pstate_cnt: u8,
+    pub pm1a_evt_blk: u32,
+    pub pm1b_evt_blk: u32,
+    pub pm1a_cnt_blk: u32,
+    pub pm1b_cnt_blk: u32,
+    pub pm2_cnt_blk: u32,
+    pub pm_tmr_blk: u32,
+    pub gpe0_blk: u32,
+    pub gpe1_blk: u32,
+    pub pm1_evt_len: u8,
+    pub pm1_cnt_len: u8,
+    pub pm2_cnt_len: u8,
+    pub pm_tmr_len: u8,
+    pub gpe0_blk_len: u8,
+    pub gpe1_blk_len: u8,
+    pub gpe1_base: u8,
+    pub cst_cnt: u8,
+    pub p_lvl2_lat: u16,
+    pub p_lvl3_lat: u16,
+    pub flush_size: u16,
+    pub flush_stride: u16,
+    pub duty_offset: u8,
+    pub duty_width: u8,
+    pub day_alrm: u8,
+    pub mon_alrm: u8,
+    pub century: u8,
+    pub iapc_boot_arch: u16,
+    pub reserved1: u8,
+    pub flags: u32,
+    pub reset_reg: [u8; 12],
+    pub reset_value: u8,
+    pub arm_boot_arch: u16,
+    pub fadt_minor_version: u8,
+    pub x_firmware_ctrl: u64,
+    pub x_dsdt: u64,
+    pub x_pm1a_evt_blk: [u8; 12],
+    pub x_pm1b_evt_blk: [u8; 12],
+    pub x_pm1a_cnt_blk: [u8; 12],
+    pub x_pm1b_cnt_blk: [u8; 12],
+    pub x_pm2_cnt_blk: [u8; 12],
+    pub x_pm_tmr_blk: [u8; 12],
+    pub x_gpe0_blk: [u8; 12],
+    pub x_gpe1_blk: [u8; 12],
+    pub sleep_control_reg: [u8; 12],
+    pub sleep_status_reg: [u8; 12],
+    pub hypervisor_vendor_identity: u64,
+}
+
+impl Fadt {
+    pub fn major_version(&self) -> u8 {
+        self.header.revision
+    }
+
+    fn from_header(header: &'static TableHeader) -> &'static Self {
+        unsafe { &*(header as *const TableHeader).cast() }
+    }
+}
+
+impl Debug for Fadt {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Fadt")
+            .field("header", &self.header)
+            .field("firmware_ctrl", &unsafe {
+                ptr::addr_of!(self.firmware_ctrl).read_unaligned()
+            })
+            .field("dsdt", &unsafe {
+                ptr::addr_of!(self.dsdt).read_unaligned()
+            })
+            .field("reserved0", &unsafe {
+                ptr::addr_of!(self.reserved0).read_unaligned()
+            })
+            .field("preferred_pm_profile", &unsafe {
+                ptr::addr_of!(self.preferred_pm_profile).read_unaligned()
+            })
+            .field("sci_int", &unsafe {
+                ptr::addr_of!(self.sci_int).read_unaligned()
+            })
+            .field("smi_cmd", &unsafe {
+                ptr::addr_of!(self.smi_cmd).read_unaligned()
+            })
+            .field("acpi_enable", &unsafe {
+                ptr::addr_of!(self.acpi_enable).read_unaligned()
+            })
+            .field("acpi_disable", &unsafe {
+                ptr::addr_of!(self.acpi_disable).read_unaligned()
+            })
+            .field("s4bios_req", &unsafe {
+                ptr::addr_of!(self.s4bios_req).read_unaligned()
+            })
+            .field("pstate_cnt", &unsafe {
+                ptr::addr_of!(self.pstate_cnt).read_unaligned()
+            })
+            .field("pm1a_evt_blk", &unsafe {
+                ptr::addr_of!(self.pm1a_evt_blk).read_unaligned()
+            })
+            .field("pm1b_evt_blk", &unsafe {
+                ptr::addr_of!(self.pm1b_evt_blk).read_unaligned()
+            })
+            .field("pm1a_cnt_blk", &unsafe {
+                ptr::addr_of!(self.pm1a_cnt_blk).read_unaligned()
+            })
+            .field("pm1b_cnt_blk", &unsafe {
+                ptr::addr_of!(self.pm1b_cnt_blk).read_unaligned()
+            })
+            .field("pm2_cnt_blk", &unsafe {
+                ptr::addr_of!(self.pm2_cnt_blk).read_unaligned()
+            })
+            .field("pm_tmr_blk", &unsafe {
+                ptr::addr_of!(self.pm_tmr_blk).read_unaligned()
+            })
+            .field("gpe0_blk", &unsafe {
+                ptr::addr_of!(self.gpe0_blk).read_unaligned()
+            })
+            .field("gpe1_blk", &unsafe {
+                ptr::addr_of!(self.gpe1_blk).read_unaligned()
+            })
+            .field("pm1_evt_len", &unsafe {
+                ptr::addr_of!(self.pm1_evt_len).read_unaligned()
+            })
+            .field("pm1_cnt_len", &unsafe {
+                ptr::addr_of!(self.pm1_cnt_len).read_unaligned()
+            })
+            .field("pm2_cnt_len", &unsafe {
+                ptr::addr_of!(self.pm2_cnt_len).read_unaligned()
+            })
+            .field("pm_tmr_len", &unsafe {
+                ptr::addr_of!(self.pm_tmr_len).read_unaligned()
+            })
+            .field("gpe0_blk_len", &unsafe {
+                ptr::addr_of!(self.gpe0_blk_len).read_unaligned()
+            })
+            .field("gpe1_blk_len", &unsafe {
+                ptr::addr_of!(self.gpe1_blk_len).read_unaligned()
+            })
+            .field("gpe1_base", &unsafe {
+                ptr::addr_of!(self.gpe1_base).read_unaligned()
+            })
+            .field("cst_cnt", &unsafe {
+                ptr::addr_of!(self.cst_cnt).read_unaligned()
+            })
+            .field("p_lvl2_lat", &unsafe {
+                ptr::addr_of!(self.p_lvl2_lat).read_unaligned()
+            })
+            .field("p_lvl3_lat", &unsafe {
+                ptr::addr_of!(self.p_lvl3_lat).read_unaligned()
+            })
+            .field("flush_size", &unsafe {
+                ptr::addr_of!(self.flush_size).read_unaligned()
+            })
+            .field("flush_stride", &unsafe {
+                ptr::addr_of!(self.flush_stride).read_unaligned()
+            })
+            .field("duty_offset", &unsafe {
+                ptr::addr_of!(self.duty_offset).read_unaligned()
+            })
+            .field("duty_width", &unsafe {
+                ptr::addr_of!(self.duty_width).read_unaligned()
+            })
+            .field("day_alrm", &unsafe {
+                ptr::addr_of!(self.day_alrm).read_unaligned()
+            })
+            .field("mon_alrm", &unsafe {
+                ptr::addr_of!(self.mon_alrm).read_unaligned()
+            })
+            .field("century", &unsafe {
+                ptr::addr_of!(self.century).read_unaligned()
+            })
+            .field("iapc_boot_arch", &unsafe {
+                ptr::addr_of!(self.iapc_boot_arch).read_unaligned()
+            })
+            .field("reserved1", &unsafe {
+                ptr::addr_of!(self.reserved1).read_unaligned()
+            })
+            .field("flags", &unsafe {
+                ptr::addr_of!(self.flags).read_unaligned()
+            })
+            .field("reset_reg", &unsafe {
+                ptr::addr_of!(self.reset_reg).read_unaligned()
+            })
+            .field("reset_value", &unsafe {
+                ptr::addr_of!(self.reset_value).read_unaligned()
+            })
+            .field("arm_boot_arch", &unsafe {
+                ptr::addr_of!(self.arm_boot_arch).read_unaligned()
+            })
+            .field("fadt_minor_version", &unsafe {
+                ptr::addr_of!(self.fadt_minor_version).read_unaligned()
+            })
+            .field("x_firmware_ctrl", &unsafe {
+                ptr::addr_of!(self.x_firmware_ctrl).read_unaligned()
+            })
+            .field("x_dsdt", &unsafe {
+                ptr::addr_of!(self.x_dsdt).read_unaligned()
+            })
+            .field("x_pm1a_evt_blk", &unsafe {
+                ptr::addr_of!(self.x_pm1a_evt_blk).read_unaligned()
+            })
+            .field("x_pm1b_evt_blk", &unsafe {
+                ptr::addr_of!(self.x_pm1b_evt_blk).read_unaligned()
+            })
+            .field("x_pm1a_cnt_blk", &unsafe {
+                ptr::addr_of!(self.x_pm1a_cnt_blk).read_unaligned()
+            })
+            .field("x_pm1b_cnt_blk", &unsafe {
+                ptr::addr_of!(self.x_pm1b_cnt_blk).read_unaligned()
+            })
+            .field("x_pm2_cnt_blk", &unsafe {
+                ptr::addr_of!(self.x_pm2_cnt_blk).read_unaligned()
+            })
+            .field("x_pm_tmr_blk", &unsafe {
+                ptr::addr_of!(self.x_pm_tmr_blk).read_unaligned()
+            })
+            .field("x_gpe0_blk", &unsafe {
+                ptr::addr_of!(self.x_gpe0_blk).read_unaligned()
+            })
+            .field("x_gpe1_blk", &unsafe {
+                ptr::addr_of!(self.x_gpe1_blk).read_unaligned()
+            })
+            .field("sleep_control_reg", &unsafe {
+                ptr::addr_of!(self.sleep_control_reg).read_unaligned()
+            })
+            .field("sleep_status_reg", &unsafe {
+                ptr::addr_of!(self.sleep_status_reg).read_unaligned()
+            })
+            .field("hypervisor_vendor_identity", &unsafe {
+                ptr::addr_of!(self.hypervisor_vendor_identity).read_unaligned()
+            })
+            .finish()
     }
 }
 
