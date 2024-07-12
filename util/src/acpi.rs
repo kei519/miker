@@ -206,8 +206,8 @@ impl Xsdt {
     }
 
     /// Returns the iterator to the whole entries.
-    pub fn entries(&self) -> XsdtEntryIter {
-        XsdtEntryIter {
+    pub fn entries(&self) -> SystemDescriptionIter<u64> {
+        SystemDescriptionIter {
             start: ptr::addr_of!(self.entry[0]),
             count: self.entries_count(),
             index: 0,
@@ -251,26 +251,28 @@ impl Debug for Xsdt {
 
 /// Iterates entries that `Xsdt` contains.
 #[derive(Debug, Clone)]
-pub struct XsdtEntryIter {
+pub struct SystemDescriptionIter<Entry: Copy + Into<u64>> {
     /// Pointer to start of the entries.
-    start: *const u64,
+    start: *const Entry,
     count: usize,
     index: usize,
 }
 
-impl Iterator for XsdtEntryIter {
+impl<Entry: Copy + Into<u64>> Iterator for SystemDescriptionIter<Entry> {
     type Item = DescriptionTable;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             if self.count <= self.index {
                 return None;
-            } else if let Ok(ret) = DescriptionTable::from_ptr(unsafe {
-                self.start
-                    .byte_add(self.index * mem::size_of::<u64>())
-                    .read_unaligned()
-            } as _)
-            {
+            } else if let Ok(ret) = DescriptionTable::from_ptr(
+                unsafe {
+                    self.start
+                        .byte_add(self.index * mem::size_of::<Entry>())
+                        .read_unaligned()
+                }
+                .into() as _,
+            ) {
                 self.index += 1;
                 return Some(ret);
             }
