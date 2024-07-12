@@ -1,5 +1,9 @@
 use core::{fmt::Debug, mem, ptr, slice};
 
+use self::apic::Madt;
+
+pub mod apic;
+
 type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -156,6 +160,7 @@ pub enum DescriptionTable {
     Rsdt(&'static Rsdt),
     Xsdt(&'static Xsdt),
     Fadt(&'static Fadt),
+    Apic(&'static Madt),
     Unsupported(UnsupportedTable),
 }
 
@@ -167,17 +172,19 @@ impl DescriptionTable {
             b"RSDT" => Ok(Self::Rsdt(Rsdt::from_header(header))),
             b"XSDT" => Ok(Self::Xsdt(Xsdt::from_header(header))),
             b"FACP" => Ok(Self::Fadt(Fadt::from_header(header))),
+            b"APIC" => Ok(Self::Apic(Madt::from_header(header))),
             // TODO: Implement below tables.
-            b"APIC" | b"BERT" | b"BGRT" | b"CCEL" | b"CPEP" | b"DSDT" | b"ECDT" | b"EINJ"
-            | b"ERST" | b"FACS" | b"GTDT" | b"HEST" | b"MISC" | b"MSCT" | b"MPST" | b"NFIT"
-            | b"PCCT" | b"PHAT" | b"PMTT" | b"PPTT" | b"PSDT" | b"RASF" | b"RAS2" | b"SBST"
-            | b"SDEV" | b"SLIT" | b"SRAT" | b"SSDT" | b"SVKL" | b"AEST" | b"AGDI" | b"APMT"
-            | b"BDAT" | b"BOOT" | b"CEDT" | b"CSRT" | b"DBGP" | b"DBG2" | b"DMAR" | b"DRTM"
-            | b"DTPR" | b"ETDT" | b"HPET" | b"IBFT" | b"IERS" | b"IORT" | b"IVRS" | b"KEYP"
-            | b"LPIT" | b"MCFG" | b"MCHI" | b"MHSP" | b"MPAM" | b"MSDM" | b"NBFT" | b"PRMT"
-            | b"PGRT" | b"SDEI" | b"SLIC" | b"SPCR" | b"SPMI" | b"STAO" | b"SWFT" | b"TCPA"
-            | b"TPM2" | b"UEFI" | b"WAET" | b"WDAT" | b"WDDT" | b"WDRT" | b"WPBT" | b"WSMT"
-            | b"XENV" => Ok(Self::Unsupported(UnsupportedTable(header.sig))),
+            b"BERT" | b"BGRT" | b"CCEL" | b"CPEP" | b"DSDT" | b"ECDT" | b"EINJ" | b"ERST"
+            | b"FACS" | b"GTDT" | b"HEST" | b"MISC" | b"MSCT" | b"MPST" | b"NFIT" | b"PCCT"
+            | b"PHAT" | b"PMTT" | b"PPTT" | b"PSDT" | b"RASF" | b"RAS2" | b"SBST" | b"SDEV"
+            | b"SLIT" | b"SRAT" | b"SSDT" | b"SVKL" | b"AEST" | b"AGDI" | b"APMT" | b"BDAT"
+            | b"BOOT" | b"CEDT" | b"CSRT" | b"DBGP" | b"DBG2" | b"DMAR" | b"DRTM" | b"DTPR"
+            | b"ETDT" | b"HPET" | b"IBFT" | b"IERS" | b"IORT" | b"IVRS" | b"KEYP" | b"LPIT"
+            | b"MCFG" | b"MCHI" | b"MHSP" | b"MPAM" | b"MSDM" | b"NBFT" | b"PRMT" | b"PGRT"
+            | b"SDEI" | b"SLIC" | b"SPCR" | b"SPMI" | b"STAO" | b"SWFT" | b"TCPA" | b"TPM2"
+            | b"UEFI" | b"WAET" | b"WDAT" | b"WDDT" | b"WDRT" | b"WPBT" | b"WSMT" | b"XENV" => {
+                Ok(Self::Unsupported(UnsupportedTable(header.sig)))
+            }
             _ => {
                 if header.sig.starts_with(b"OEM") {
                     Err(Error::NotSupportedTable(header.sig))
