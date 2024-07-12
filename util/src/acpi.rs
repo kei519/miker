@@ -246,12 +246,10 @@ impl Xsdt {
     /// is a proper one for XSDT, so it does NOT check any conditions.
     fn from_header(header: &'static TableHeader) -> &'static Xsdt {
         // Make fat pointer because `Xsdt` contains an unsized field.
-        let fat_ptr: &[u64] = unsafe {
-            slice::from_raw_parts(
-                (header as *const TableHeader).cast(),
-                header.entries_len() / mem::size_of::<u64>(),
-            )
-        };
+        let fat_ptr = ptr::slice_from_raw_parts(
+            (header as *const TableHeader).cast::<u64>(),
+            header.entries_len() / mem::size_of::<u64>(),
+        );
         unsafe { &*(fat_ptr as *const _ as *const Xsdt) }
     }
 }
@@ -347,13 +345,11 @@ impl Rsdt {
     /// is a proper one for XSDT, so it does NOT check any conditions.
     fn from_header(header: &'static TableHeader) -> &'static Self {
         // Make fat pointer because `Rsdt` contains an unsized field.
-        let fat_ptr: &[u32] = unsafe {
-            slice::from_raw_parts(
-                (header as *const TableHeader).cast(),
-                header.entries_len() / mem::size_of::<u32>(),
-            )
-        };
-        unsafe { &*(fat_ptr as *const _ as *const Self) }
+        let fat_ptr = ptr::slice_from_raw_parts(
+            (header as *const TableHeader).cast::<u32>(),
+            header.entries_len() / mem::size_of::<u32>(),
+        );
+        unsafe { &*(fat_ptr as *const Self) }
     }
 }
 

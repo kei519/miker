@@ -1,4 +1,4 @@
-use core::{fmt::Debug, mem, slice};
+use core::{fmt::Debug, mem, ptr};
 
 use super::TableHeader;
 
@@ -22,13 +22,11 @@ pub struct Madt {
 
 impl Madt {
     pub(super) fn from_header(header: &'static TableHeader) -> &'static Self {
-        let fat_ptr = unsafe {
-            slice::from_raw_parts(
-                header as *const _ as *const u8,
-                header.entries_len() / mem::size_of::<u8>(),
-            )
-        };
-        unsafe { &*(fat_ptr as *const _ as *const _) }
+        let fat_ptr = ptr::slice_from_raw_parts(
+            header as *const _ as *const u8,
+            header.entries_len() / mem::size_of::<u8>(),
+        );
+        unsafe { &*(fat_ptr as *const _) }
     }
 }
 
