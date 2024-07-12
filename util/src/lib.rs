@@ -3,6 +3,7 @@
 mod font_data;
 
 pub mod acpi;
+pub mod bitfield;
 pub mod buffer;
 pub mod elf;
 pub mod graphics;
