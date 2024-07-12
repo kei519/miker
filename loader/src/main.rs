@@ -24,7 +24,7 @@ use uefi::{
             AllocateType, MemoryMap, MemoryType, OpenProtocolAttributes, OpenProtocolParams,
             ScopedProtocol, SearchType,
         },
-        Boot, SystemTable,
+        Boot, Runtime, SystemTable,
     },
     CStr16, Error, Handle, Identify, Status,
 };
@@ -140,7 +140,6 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
 
     println!("succeeded loading 2nd loader to {:08x}-{:08x}", start, end);
 
-
     // Get frame buffer info.
     // We need to get handle for taking GraphicsOutput.
     let mut graphics_handles = [MaybeUninit::uninit(); 64];
@@ -176,11 +175,11 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
     drop(graphics);
 
     // Exit UEFI boot service to pass the control to 2nd loader.
-    let (_, memmap) = st.exit_boot_services(MemoryType::LOADER_DATA);
+    let (runtime_services, memmap) = st.exit_boot_services(MemoryType::LOADER_DATA);
 
-    type EntryFn = extern "sysv64" fn(&FrameBufferInfo, &MemoryMap) -> !;
+    type EntryFn = extern "sysv64" fn(&FrameBufferInfo, &MemoryMap, SystemTable<Runtime>) -> !;
     let loader2_entry: EntryFn = transmute(elf_header.entry);
-    loader2_entry(&fb_info, &memmap);
+    loader2_entry(&fb_info, &memmap, runtime_services);
 }
 
 /// Get protocol `P` from boot servieces.

@@ -3,7 +3,7 @@
 
 use core::fmt::Write as _;
 
-use uefi::table::boot::MemoryMap;
+use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
 use util::{
     buffer::StrBuf,
     graphics::{GrayscalePixelWrite as _, GrayscalePrint as _},
@@ -14,7 +14,7 @@ use util::{
 static FB_INFO: OnceStatic<FrameBufferInfo> = OnceStatic::new();
 
 #[no_mangle]
-fn _start(fb_info: &FrameBufferInfo, memmap: &MemoryMap) {
+fn _start(fb_info: &FrameBufferInfo, memmap: &MemoryMap, _: SystemTable<Runtime>) {
     let mut screen = GrayscaleScreen::new(fb_info.clone());
     FB_INFO.init(fb_info.clone());
 
