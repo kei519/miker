@@ -150,6 +150,7 @@ impl TableHeader {
 pub enum DescriptionTable {
     Xsdt(&'static Xsdt),
     Fadt(&'static Fadt),
+    Unsupported(UnsupportedTable),
 }
 
 impl DescriptionTable {
@@ -169,7 +170,7 @@ impl DescriptionTable {
             | b"KEYP" | b"LPIT" | b"MCFG" | b"MCHI" | b"MHSP" | b"MPAM" | b"MSDM" | b"NBFT"
             | b"PRMT" | b"PGRT" | b"SDEI" | b"SLIC" | b"SPCR" | b"SPMI" | b"STAO" | b"SWFT"
             | b"TCPA" | b"TPM2" | b"UEFI" | b"WAET" | b"WDAT" | b"WDDT" | b"WDRT" | b"WPBT"
-            | b"WSMT" | b"XENV" => Err(Error::NotSupportedTable(header.sig)),
+            | b"WSMT" | b"XENV" => Ok(Self::Unsupported(UnsupportedTable(header.sig))),
             _ => {
                 if header.sig.starts_with(b"OEM") {
                     Err(Error::NotSupportedTable(header.sig))
@@ -521,6 +522,19 @@ impl Debug for Fadt {
                 ptr::addr_of!(self.hypervisor_vendor_identity).read_unaligned()
             })
             .finish()
+    }
+}
+
+/// Represents a not yet supported table.
+#[derive(Clone, Copy)]
+pub struct UnsupportedTable([u8; 4]);
+
+impl Debug for UnsupportedTable {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let s = core::str::from_utf8(&self.0).unwrap_or_else(|_| {
+            panic!("util internal error: do not construct UnsupportedTable with non ASCII bytes");
+        });
+        f.debug_tuple("UnsupportedTable").field(&s).finish()
     }
 }
 
