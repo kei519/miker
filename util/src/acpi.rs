@@ -91,6 +91,11 @@ impl Rsdp {
         Ok(ret)
     }
 
+    /// Returns the reference to [Rsdt] indicated by `Rsdp.rsdt_address` if it is valid Rsdt.
+    pub fn rsdt(&'static self) -> Result<&'static Rsdt> {
+        Rsdt::from_ptr(self.rsdt_address as _)
+    }
+
     /// Returns the reference to [Xsdt] indicated by `Rsdp.xsdt_address` if it is valid Xsdt.
     pub fn xsdt(&'static self) -> Result<&'static Xsdt> {
         Xsdt::from_ptr(self.xsdt_address as _)
@@ -148,6 +153,7 @@ impl TableHeader {
 /// Represents whole description tables.
 #[derive(Debug, Clone, Copy)]
 pub enum DescriptionTable {
+    Rsdt(&'static Rsdt),
     Xsdt(&'static Xsdt),
     Fadt(&'static Fadt),
     Unsupported(UnsupportedTable),
@@ -158,19 +164,20 @@ impl DescriptionTable {
     fn from_ptr(ptr: usize) -> Result<Self> {
         let header = TableHeader::from_ptr(ptr as *const _)?;
         match &header.sig {
+            b"RSDT" => Ok(Self::Rsdt(Rsdt::from_header(header))),
             b"XSDT" => Ok(Self::Xsdt(Xsdt::from_header(header))),
             b"FACP" => Ok(Self::Fadt(Fadt::from_header(header))),
             // TODO: Implement below tables.
             b"APIC" | b"BERT" | b"BGRT" | b"CCEL" | b"CPEP" | b"DSDT" | b"ECDT" | b"EINJ"
             | b"ERST" | b"FACS" | b"GTDT" | b"HEST" | b"MISC" | b"MSCT" | b"MPST" | b"NFIT"
-            | b"PCCT" | b"PHAT" | b"PMTT" | b"PPTT" | b"PSDT" | b"RASF" | b"RAS2" | b"RSDT"
-            | b"SBST" | b"SDEV" | b"SLIT" | b"SRAT" | b"SSDT" | b"SVKL" | b"AEST" | b"AGDI"
-            | b"APMT" | b"BDAT" | b"BOOT" | b"CEDT" | b"CSRT" | b"DBGP" | b"DBG2" | b"DMAR"
-            | b"DRTM" | b"DTPR" | b"ETDT" | b"HPET" | b"IBFT" | b"IERS" | b"IORT" | b"IVRS"
-            | b"KEYP" | b"LPIT" | b"MCFG" | b"MCHI" | b"MHSP" | b"MPAM" | b"MSDM" | b"NBFT"
-            | b"PRMT" | b"PGRT" | b"SDEI" | b"SLIC" | b"SPCR" | b"SPMI" | b"STAO" | b"SWFT"
-            | b"TCPA" | b"TPM2" | b"UEFI" | b"WAET" | b"WDAT" | b"WDDT" | b"WDRT" | b"WPBT"
-            | b"WSMT" | b"XENV" => Ok(Self::Unsupported(UnsupportedTable(header.sig))),
+            | b"PCCT" | b"PHAT" | b"PMTT" | b"PPTT" | b"PSDT" | b"RASF" | b"RAS2" | b"SBST"
+            | b"SDEV" | b"SLIT" | b"SRAT" | b"SSDT" | b"SVKL" | b"AEST" | b"AGDI" | b"APMT"
+            | b"BDAT" | b"BOOT" | b"CEDT" | b"CSRT" | b"DBGP" | b"DBG2" | b"DMAR" | b"DRTM"
+            | b"DTPR" | b"ETDT" | b"HPET" | b"IBFT" | b"IERS" | b"IORT" | b"IVRS" | b"KEYP"
+            | b"LPIT" | b"MCFG" | b"MCHI" | b"MHSP" | b"MPAM" | b"MSDM" | b"NBFT" | b"PRMT"
+            | b"PGRT" | b"SDEI" | b"SLIC" | b"SPCR" | b"SPMI" | b"STAO" | b"SWFT" | b"TCPA"
+            | b"TPM2" | b"UEFI" | b"WAET" | b"WDAT" | b"WDDT" | b"WDRT" | b"WPBT" | b"WSMT"
+            | b"XENV" => Ok(Self::Unsupported(UnsupportedTable(header.sig))),
             _ => {
                 if header.sig.starts_with(b"OEM") {
                     Err(Error::NotSupportedTable(header.sig))
@@ -279,6 +286,67 @@ impl<Entry: Copy + Into<u64>> Iterator for SystemDescriptionIter<Entry> {
             }
             self.index += 1;
         }
+    }
+}
+
+/// Represents Root System Description Table.
+#[repr(C)]
+#[derive(Debug)]
+pub struct Rsdt {
+    header: TableHeader,
+    entry: [u32],
+}
+
+impl Rsdt {
+    /// Returns the number of entries in the table.
+    pub fn entries_count(&self) -> usize {
+        self.header.entries_len() / mem::size_of::<u32>()
+    }
+
+    /// Returns `index`-th entry if it exists.
+    pub fn entry(&self, index: usize) -> Result<DescriptionTable> {
+        if index < self.entries_count() {
+            Ok(DescriptionTable::from_ptr(unsafe {
+                ptr::addr_of!(self.entry[index]).read_unaligned()
+            } as _)?)
+        } else {
+            Err(Error::IndexOutOfRange)
+        }
+    }
+
+    /// Returns the iterator to the whole entries.
+    pub fn entries(&self) -> SystemDescriptionIter<u32> {
+        SystemDescriptionIter {
+            start: ptr::addr_of!(self.entry[0]),
+            count: self.entries_count(),
+            index: 0,
+        }
+    }
+
+    /// Returns a reference to [Xsdt] pointed by `ptr`. Containing any nvalid fields results in
+    /// `Err`.
+    fn from_ptr(ptr: usize) -> Result<&'static Self> {
+        let header = TableHeader::from_ptr(ptr as *const _)?;
+
+        // Checks fields.
+        if header.sig != *b"RSDT" {
+            return Err(Error::InvalidSignature);
+        }
+
+        Ok(Self::from_header(header))
+    }
+
+    /// Returns a reference to [Xsdt] from the header `header` of it. This funtion assumes `header`
+    /// is a proper one for XSDT, so it does NOT check any conditions.
+    fn from_header(header: &'static TableHeader) -> &'static Self {
+        // Make fat pointer because `Rsdt` contains an unsized field.
+        let fat_ptr: &[u32] = unsafe {
+            slice::from_raw_parts(
+                (header as *const TableHeader).cast(),
+                header.entries_len() / mem::size_of::<u32>(),
+            )
+        };
+        unsafe { &*(fat_ptr as *const _ as *const Self) }
     }
 }
 
