@@ -161,6 +161,7 @@ pub enum DescriptionTable {
     Xsdt(&'static Xsdt),
     Fadt(&'static Fadt),
     Madt(&'static Madt),
+    Mcfg(&'static Mcfg),
     Unsupported(UnsupportedTable),
 }
 
@@ -173,6 +174,7 @@ impl DescriptionTable {
             b"XSDT" => Ok(Self::Xsdt(Xsdt::from_header(header))),
             b"FACP" => Ok(Self::Fadt(Fadt::from_header(header))),
             b"APIC" => Ok(Self::Madt(Madt::from_header(header))),
+            b"MCFG" => Ok(Self::Mcfg(Mcfg::from_header(header))),
             // TODO: Implement below tables.
             b"BERT" | b"BGRT" | b"CCEL" | b"CPEP" | b"DSDT" | b"ECDT" | b"EINJ" | b"ERST"
             | b"FACS" | b"GTDT" | b"HEST" | b"MISC" | b"MSCT" | b"MPST" | b"NFIT" | b"PCCT"
@@ -180,9 +182,9 @@ impl DescriptionTable {
             | b"SLIT" | b"SRAT" | b"SSDT" | b"SVKL" | b"AEST" | b"AGDI" | b"APMT" | b"BDAT"
             | b"BOOT" | b"CEDT" | b"CSRT" | b"DBGP" | b"DBG2" | b"DMAR" | b"DRTM" | b"DTPR"
             | b"ETDT" | b"HPET" | b"IBFT" | b"IERS" | b"IORT" | b"IVRS" | b"KEYP" | b"LPIT"
-            | b"MCFG" | b"MCHI" | b"MHSP" | b"MPAM" | b"MSDM" | b"NBFT" | b"PRMT" | b"PGRT"
-            | b"SDEI" | b"SLIC" | b"SPCR" | b"SPMI" | b"STAO" | b"SWFT" | b"TCPA" | b"TPM2"
-            | b"UEFI" | b"WAET" | b"WDAT" | b"WDDT" | b"WDRT" | b"WPBT" | b"WSMT" | b"XENV" => {
+            | b"MCHI" | b"MHSP" | b"MPAM" | b"MSDM" | b"NBFT" | b"PRMT" | b"PGRT" | b"SDEI"
+            | b"SLIC" | b"SPCR" | b"SPMI" | b"STAO" | b"SWFT" | b"TCPA" | b"TPM2" | b"UEFI"
+            | b"WAET" | b"WDAT" | b"WDDT" | b"WDRT" | b"WPBT" | b"WSMT" | b"XENV" => {
                 Ok(Self::Unsupported(UnsupportedTable(header.sig)))
             }
             _ => {
@@ -594,6 +596,62 @@ impl Debug for Fadt {
             })
             .finish()
     }
+}
+
+/// Represents PCI Express Memory-mapped Configuration. Each configuration ([PcieMmioConfig]) tells
+/// you the base address of MMIO of a host bridge.
+#[repr(C, packed)]
+pub struct Mcfg {
+    header: TableHeader,
+    reserved: u64,
+    config: [PcieMmioConfig],
+}
+
+impl Mcfg {
+    pub fn entries_count(&self) -> usize {
+        // There is an 8-byte reserved space.
+        (self.header.entries_len() - mem::size_of::<u64>()) / mem::size_of::<PcieMmioConfig>()
+    }
+
+    /// Returns the slice of configurations that this structure contains.
+    pub fn configs(&self) -> &[PcieMmioConfig] {
+        unsafe { slice::from_raw_parts(ptr::addr_of!(self.config[0]), self.entries_count()) }
+    }
+
+    fn from_header(header: &'static TableHeader) -> &'static Self {
+        let fat_ptr = ptr::slice_from_raw_parts(
+            (header as *const TableHeader).cast::<u8>(),
+            header.entries_len() / mem::size_of::<PcieMmioConfig>(),
+        );
+        unsafe { &*(fat_ptr as *const Self) }
+    }
+}
+
+impl Debug for Mcfg {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let configs = self.configs();
+        f.debug_struct("Mcfg")
+            .field("header", &self.header)
+            .field("config_base_address_alloc", &configs)
+            .finish()
+    }
+}
+
+/// Represents configuration space base address allocation structures that give you information
+/// about host bridges.
+#[repr(C, packed)]
+#[derive(Debug, Clone, Copy)]
+pub struct PcieMmioConfig {
+    /// Base address of enhanced configuration mechanism, which is the starting physical address of
+    /// MMIO.
+    pub base_addr: u64,
+    /// PCI Segment Group Number.
+    pub pci_group: u16,
+    /// Start PCI bus number decoded by this host bridge.
+    pub start_bus: u8,
+    /// End PCI bus number decoded by this host bridge.
+    pub end_bus: u8,
+    reserved: u32,
 }
 
 /// Represents a not yet supported table.
