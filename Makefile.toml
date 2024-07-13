@@ -44,6 +44,8 @@ qemu-system-x86_64 \
     -drive if=pflash,format=raw,file="${OVMF_VARS}" \
     -drive if=ide,index=0,media=disk,format=raw,file="${DISK_IMG}" \
     -monitor stdio \
+    -enable-kvm \
+    -machine q35 \
     ${@}
 '''
 
