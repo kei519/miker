@@ -81,6 +81,7 @@ impl Iterator for InterruptControllerIter {
 #[derive(Debug, Clone, Copy)]
 pub enum InterruptController {
     LocalApic(&'static LocalApic),
+    IoApic(&'static IoApic),
     Unsupported(UnsupportedInterruptController),
 }
 
@@ -88,17 +89,25 @@ impl InterruptController {
     pub fn as_ptr(&self) -> *const u8 {
         match self {
             Self::LocalApic(apic) => (*apic as *const LocalApic).cast(),
+            Self::IoApic(apic) => (*apic as *const IoApic).cast(),
             Self::Unsupported(cont) => unsafe { cont.data.as_ptr().cast::<u8>().byte_sub(2) },
         }
     }
 
     fn from_ptr(ptr: *const u8) -> (Self, *const u8) {
-        if InterruptControllerType::LOCAL_APIC == unsafe { *ptr } {
-            let res = LocalApic::from_ptr(ptr);
-            (Self::LocalApic(res.0), res.1)
-        } else {
-            let res = UnsupportedInterruptController::from_ptr(ptr);
-            (Self::Unsupported(res.0), res.1)
+        match unsafe { *ptr } {
+            ty if ty == InterruptControllerType::LOCAL_APIC => {
+                let res = LocalApic::from_ptr(ptr);
+                (Self::LocalApic(res.0), res.1)
+            }
+            ty if ty == InterruptControllerType::IO_APIC => {
+                let res = IoApic::from_ptr(ptr);
+                (Self::IoApic(res.0), res.1)
+            }
+            _ => {
+                let res = UnsupportedInterruptController::from_ptr(ptr);
+                (Self::Unsupported(res.0), res.1)
+            }
         }
     }
 }
@@ -108,6 +117,7 @@ pub struct InterruptControllerType(pub u8);
 
 impl InterruptControllerType {
     pub const LOCAL_APIC: Self = Self(0);
+    pub const IO_APIC: Self = Self(1);
 }
 
 impl PartialEq<u8> for InterruptControllerType {
@@ -207,6 +217,29 @@ impl Debug for LocalApic {
             .field("enable", &self.enable())
             .field("online_capable", &self.online_capable())
             .finish()
+    }
+}
+
+#[repr(C, packed)]
+#[derive(Debug)]
+pub struct IoApic {
+    pub ty: InterruptControllerType,
+    /// 12.
+    length: u8,
+    /// The I/O APIC's ID.
+    pub io_apic_id: u8,
+    /// 0.
+    pub reserved: u8,
+    /// The 32-bit physical address to access this I/O APIC.
+    pub io_apic_address: u32,
+    /// The global system interrupt number where this I/O APIC's interrupt inputs start. The number
+    /// of interrupt inputs is determined by the I/O APIC's Max Redir Entry register.
+    pub global_system_interrupt_base: u32,
+}
+
+impl IoApic {
+    fn from_ptr(ptr: *const u8) -> (&'static Self, *const u8) {
+        unsafe { (&*(ptr.cast()), ptr.add(mem::size_of::<Self>())) }
     }
 }
 
