@@ -85,6 +85,13 @@ pub enum InterruptController {
 }
 
 impl InterruptController {
+    pub fn as_ptr(&self) -> *const u8 {
+        match self {
+            Self::LocalApic(apic) => (*apic as *const LocalApic).cast(),
+            Self::Unsupported(cont) => unsafe { cont.data.as_ptr().cast::<u8>().byte_sub(2) },
+        }
+    }
+
     fn from_ptr(ptr: *const u8) -> (Self, *const u8) {
         if InterruptControllerType::LOCAL_APIC == unsafe { *ptr } {
             let res = LocalApic::from_ptr(ptr);
