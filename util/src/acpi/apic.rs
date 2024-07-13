@@ -3,6 +3,8 @@ use core::{
     mem, ptr, slice,
 };
 
+use crate::bitfield::BitField;
+
 use super::TableHeader;
 
 /// Represents Multiple APIC Description Table.
@@ -78,18 +80,40 @@ impl Iterator for InterruptControllerIter {
 
 #[derive(Debug, Clone, Copy)]
 pub enum InterruptController {
+    LocalApic(&'static LocalApic),
     Unsupported(UnsupportedInterruptController),
 }
 
 impl InterruptController {
     fn from_ptr(ptr: *const u8) -> (Self, *const u8) {
-        let res = UnsupportedInterruptController::from_ptr(ptr);
-        (Self::Unsupported(res.0), res.1)
+        if InterruptControllerType::LOCAL_APIC == unsafe { *ptr } {
+            let res = LocalApic::from_ptr(ptr);
+            (Self::LocalApic(res.0), res.1)
+        } else {
+            let res = UnsupportedInterruptController::from_ptr(ptr);
+            (Self::Unsupported(res.0), res.1)
+        }
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct InterruptControllerType(pub u8);
+
+impl InterruptControllerType {
+    pub const LOCAL_APIC: Self = Self(0);
+}
+
+impl PartialEq<u8> for InterruptControllerType {
+    fn eq(&self, other: &u8) -> bool {
+        self.0.eq(other)
+    }
+}
+
+impl PartialEq<InterruptControllerType> for u8 {
+    fn eq(&self, other: &InterruptControllerType) -> bool {
+        self.eq(&other.0)
+    }
+}
 
 impl Display for InterruptControllerType {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -128,6 +152,54 @@ impl Display for InterruptControllerType {
 impl Debug for InterruptControllerType {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         Display::fmt(self, f)
+    }
+}
+
+#[repr(C, packed)]
+pub struct LocalApic {
+    pub ty: InterruptControllerType,
+    /// 8.
+    length: u8,
+    /// The OS associates this Local APIC Structure with a processor object in the namespace when
+    /// the _UID child object of the processor’s device object evaluates to a numeric value that
+    /// matches the numeric value in this field.
+    pub acpi_processor_uid: u8,
+    /// The processor's local APIC ID.
+    pub apic_id: u8,
+    pub flags: u32,
+}
+
+impl LocalApic {
+    /// If `true` the processor is ready for use. If `false` and the
+    /// [`online_capable()`](Self::online_capable) is `true`, system hardware supports enabling
+    /// this processor during OS runtime. If both are `false`, this processor is unusable.
+    pub fn enable(&self) -> bool {
+        let flags = self.flags;
+        flags.get_bit(0)
+    }
+
+    /// This information depends on the [`enable()`](Self::enable) value. Read
+    /// [`enable()`](Self::enable).
+    pub fn online_capable(&self) -> bool {
+        let flags = self.flags;
+        flags.get_bit(1)
+    }
+
+    fn from_ptr(ptr: *const u8) -> (&'static Self, *const u8) {
+        unsafe { (&*ptr.cast(), ptr.add(mem::size_of::<Self>())) }
+    }
+}
+
+impl Debug for LocalApic {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("LocalApic")
+            .field("ty", &self.ty)
+            .field("length", &self.length)
+            .field("acpi_processor_uid", &self.acpi_processor_uid)
+            .field("apic_id", &self.apic_id)
+            .field("enable", &self.enable())
+            .field("online_capable", &self.online_capable())
+            .finish()
     }
 }
 
