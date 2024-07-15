@@ -1,5 +1,5 @@
 [package]
-name = "loader2"
+name = "kernel"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -7,7 +7,7 @@ description.workspace = true
 readme.workspace = true
 
 [[bin]]
-name = "loader2"
+name = "kernel"
 test = false
 bench = false
 

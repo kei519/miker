@@ -18,9 +18,9 @@ LOADER_NAME = "loader"
 LOADER_TARGET = "x86_64-unknown-uefi"
 LOADER_PATH = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${LOADER_TARGET}/debug/${LOADER_NAME}.efi"
 
-LOADER2_NAME = "loader2"
-LOADER2_TARGET = "x86_64-unknown-none"
-LOADER2_PATH = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${LOADER2_TARGET}/debug/${LOADER2_NAME}"
+KERNEL_NAME = "kernel"
+KERNEL_TARGET = "x86_64-unknown-none"
+KERNEL_PATH = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${KERNEL_TARGET}/debug/${KERNEL_NAME}"
 
 [tasks.default]
 workspace = false
@@ -79,8 +79,8 @@ LOADER_DEPLOY_PATH="${MOUNT_POINT}/EFI/BOOT/BOOTx64.EFI"
 mkdir -p $(dirname "${LOADER_DEPLOY_PATH}")
 cp "${LOADER_PATH}" "${LOADER_DEPLOY_PATH}"
 
-LOADER2_DEPLOY_PATH="${MOUNT_POINT}/loader2"
-cp "${LOADER2_PATH}" "${LOADER2_DEPLOY_PATH}"
+KERNEL_DEPLOY_PATH="${MOUNT_POINT}/kernel"
+cp "${KERNEL_PATH}" "${KERNEL_DEPLOY_PATH}"
 
 sleep 0.5
 '''
@@ -90,7 +90,7 @@ extend = "make-image-without-umount"
 dependencies = ["member-release"]
 [tasks.make-image-release-without-umount.env]
 LOADER_PATH = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${LOADER_TARGET}/release/${LOADER_NAME}.efi"
-LOADER2_PATH = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${LOADER2_TARGET}/release/${LOADER2_NAME}"
+KERNEL_PATH = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${KERNEL_TARGET}/release/${KERNEL_NAME}"
 
 [tasks.check-ovmf_vars]
 workspace = false

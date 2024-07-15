@@ -23,10 +23,10 @@ dependencies = ["build-with-debuginfo"]
 script = '''
 #!/bin/bash -ex
 
-SYMBOLS=$(nm "${LOADER2_PATH}" | head -n 1)
+SYMBOLS=$(nm "${KERNEL_PATH}" | head -n 1)
 
 if [ -n "$SYMBOLS" ]; then
-    objcopy --only-keep-debug "${LOADER2_PATH}" "${LOADER2_PATH}.debug"
-    strip --strip-all "${LOADER2_PATH}"
+    objcopy --only-keep-debug "${KERNEL_PATH}" "${KERNEL_PATH}.debug"
+    strip --strip-all "${KERNEL_PATH}"
 fi
 '''

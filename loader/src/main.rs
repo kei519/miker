@@ -33,8 +33,8 @@ use util::{
     screen::{FrameBufferInfo, PixelFormat},
 };
 
-/// 2nd loader path in the boot device.
-const SECOND_LOADER_PATH: &CStr16 = cstr16!("\\loader2");
+/// kernel path in the boot device.
+const KERNEL_PATH: &CStr16 = cstr16!("\\kernel");
 
 /// Converts [Error] to [MyError].
 macro_rules! error {
@@ -73,19 +73,19 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
         .open_volume()
         .map_err(|e| error!(e))?;
 
-    // Get the 2nd loader file handle.
-    let loader2_handle = root_dir
-        .open(SECOND_LOADER_PATH, FileMode::Read, FileAttribute::empty())
+    // Get the kernel file handle.
+    let kernel_handle = root_dir
+        .open(KERNEL_PATH, FileMode::Read, FileAttribute::empty())
         .map_err(|e| error!(e))?;
-    let FileType::Regular(mut loader2) = loader2_handle.into_type().map_err(|e| error!(e))? else {
-        println!("{} is a directory", SECOND_LOADER_PATH);
+    let FileType::Regular(mut kernel) = kernel_handle.into_type().map_err(|e| error!(e))? else {
+        println!("{} is a directory", KERNEL_PATH);
         return Err(error!(Error::new(Status::NOT_FOUND, ())));
     };
 
-    // Allocate temporary buffer to load whole 2nd loader file
+    // Allocate temporary buffer to load whole kernel file
     // to deploy it into the propery address.
     let mut buf = [0; 1024];
-    let file_info: &FileInfo = loader2
+    let file_info: &FileInfo = kernel
         .get_info(&mut buf)
         .map_err(|_| error!(Error::new(Status::BUFFER_TOO_SMALL, ())))?;
     let num_tmp_pages = (file_info.file_size() as usize + 4095) / 4096;
@@ -99,7 +99,7 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
         )
         .map_err(|e| error!(e))?;
     let buf = slice::from_raw_parts_mut(tmp_addr as *mut _, num_tmp_pages * 4096);
-    loader2.read(buf).map_err(|e| error!(e))?;
+    kernel.read(buf).map_err(|e| error!(e))?;
 
     // Get address info from ELF and programe headers.
     let elf_header = &*(buf.as_ptr() as *const Elf64Ehdr);
@@ -107,7 +107,7 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
         (tmp_addr + elf_header.phoff) as *const Elf64Phdr,
         elf_header.phnum as _,
     );
-    // Calculate the start and end addresses between which the 2nd loader will be loaded.
+    // Calculate the start and end addresses between which the kernel will be loaded.
     let mut start = u64::MAX;
     let mut end = 0;
     for phdr in elf_phdrs {
@@ -117,7 +117,7 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
         }
     }
 
-    // Allocate memory for deploying the 2nd loader at its proper address.
+    // Allocate memory for deploying the kernel at its proper address.
     let num_pages = (end - start + 4095) / 4096;
     st.boot_services()
         .allocate_pages(
@@ -138,7 +138,7 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
         }
     }
 
-    println!("succeeded loading 2nd loader to {:08x}-{:08x}", start, end);
+    println!("succeeded loading kernel to {:08x}-{:08x}", start, end);
 
     // Get frame buffer info.
     // We need to get handle for taking GraphicsOutput.
@@ -174,12 +174,12 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
     };
     drop(graphics);
 
-    // Exit UEFI boot service to pass the control to 2nd loader.
+    // Exit UEFI boot service to pass the control to kernel
     let (runtime_services, memmap) = st.exit_boot_services(MemoryType::LOADER_DATA);
 
     type EntryFn = extern "sysv64" fn(&FrameBufferInfo, &MemoryMap, SystemTable<Runtime>) -> !;
-    let loader2_entry: EntryFn = transmute(elf_header.entry);
-    loader2_entry(&fb_info, &memmap, runtime_services);
+    let kernel_entry: EntryFn = transmute(elf_header.entry);
+    kernel_entry(&fb_info, &memmap, runtime_services);
 }
 
 /// Get protocol `P` from boot servieces.
