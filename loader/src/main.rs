@@ -30,6 +30,7 @@ use uefi::{
 };
 use util::{
     elf::{Elf64Ehdr, Elf64Phdr, ElfProgType},
+    paging::{PageEntry, PageTable, VirtualAddress, PAGE_SIZE},
     screen::{FrameBufferInfo, PixelFormat},
 };
 
@@ -88,7 +89,7 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
     let file_info: &FileInfo = kernel
         .get_info(&mut buf)
         .map_err(|_| error!(Error::new(Status::BUFFER_TOO_SMALL, ())))?;
-    let num_tmp_pages = (file_info.file_size() as usize + 4095) / 4096;
+    let num_tmp_pages = (file_info.file_size() as usize + PAGE_SIZE - 1) / PAGE_SIZE;
     let tmp_addr = st
         .boot_services()
         .allocate_pages(
@@ -98,7 +99,7 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
             num_tmp_pages,
         )
         .map_err(|e| error!(e))?;
-    let buf = slice::from_raw_parts_mut(tmp_addr as *mut _, num_tmp_pages * 4096);
+    let buf = slice::from_raw_parts_mut(tmp_addr as *mut _, num_tmp_pages * PAGE_SIZE);
     kernel.read(buf).map_err(|e| error!(e))?;
 
     // Get address info from ELF and programe headers.
@@ -117,28 +118,59 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
         }
     }
 
+    // Allocate memory to set page tables.
+    let current_pml4: u64;
+    core::arch::asm!("mov {}, cr3", out(reg) current_pml4);
+    let current_pml4 = &*(current_pml4 as *const PageTable);
+    let new_pml4 = st
+        .boot_services()
+        .allocate_pages(AllocateType::AnyPages, MemoryType::LOADER_DATA, 1)
+        .map_err(|e| error!(e))?;
+    let new_pml4 = &mut *(new_pml4 as *mut PageTable);
+    for (current, new) in current_pml4.iter().zip(new_pml4.iter_mut()) {
+        *new = *current;
+    }
+
     // Allocate memory for deploying the kernel at its proper address.
-    let num_pages = (end - start + 4095) / 4096;
-    st.boot_services()
+    let num_pages = (end - start + PAGE_SIZE as u64 - 1) / PAGE_SIZE as u64;
+    let kernel_virt_head = start & !0xfff;
+    let kernel_phys_head = st
+        .boot_services()
         .allocate_pages(
-            AllocateType::Address(start),
+            AllocateType::AnyPages,
             MemoryType::LOADER_CODE,
             num_pages as _,
         )
         .map_err(|e| error!(e))?;
 
-    // Copy temporary data to right place.
+    // Copy temporary data to right place and set proper page tables.
     for phdr in elf_phdrs {
         if phdr.ty == ElfProgType::Load {
+            // Copy data.
+            let phaddr = kernel_phys_head + phdr.vaddr - kernel_virt_head;
             ptr::copy_nonoverlapping(
                 (tmp_addr + phdr.offset) as *const u8,
-                phdr.vaddr as *mut u8,
+                phaddr as *mut u8,
                 phdr.filesz as _,
             );
+            // Set page tables.
+            let num_pages = (phdr.memsz + PAGE_SIZE as u64 - 1) / PAGE_SIZE as u64;
+            set_page_tables(
+                &st,
+                new_pml4,
+                phdr.vaddr.into(),
+                phaddr & !0xfff,
+                num_pages as _,
+                phdr.flags.writable(),
+            )?;
         }
     }
 
-    println!("succeeded loading kernel to {:08x}-{:08x}", start, end);
+    println!(
+        "succeeded loading kernel to {:08x}-{:08x}",
+        kernel_phys_head,
+        kernel_phys_head + end - start
+    );
 
     // Get frame buffer info.
     // We need to get handle for taking GraphicsOutput.
@@ -177,6 +209,9 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
     // Exit UEFI boot service to pass the control to kernel
     let (runtime_services, memmap) = st.exit_boot_services(MemoryType::LOADER_DATA);
 
+    // Set new PML4.
+    core::arch::asm!("mov cr3, {}", in(reg) new_pml4 as *const _ as u64);
+
     type EntryFn = extern "sysv64" fn(&FrameBufferInfo, &MemoryMap, SystemTable<Runtime>) -> !;
     let kernel_entry: EntryFn = transmute(elf_header.entry);
     kernel_entry(&fb_info, &memmap, runtime_services);
@@ -206,6 +241,43 @@ unsafe fn get_protocol<P: Protocol>(
             println!("error with protocol {}", any::type_name::<P>());
             error!(e)
         })
+}
+
+/// Sets `num_pages` page from `vaddr` to `pml4` with physical address `phaddr`.
+unsafe fn set_page_tables(
+    st: &SystemTable<Boot>,
+    pml4: &mut PageTable,
+    vaddr: VirtualAddress,
+    phaddr: u64,
+    num_pages: usize,
+    writable: bool,
+) -> Result<(), MyError> {
+    // FIXME: This function does not take care of a situation where there are any PT boundaries between
+    //        `vaddr` and `vaddr` + `num_pages` * 4096.
+
+    let mut level_table = pml4;
+    for level in (2..=4).rev() {
+        if level_table[vaddr.get_level_index(level)].next().is_none() {
+            let ptr = st
+                .boot_services()
+                .allocate_pages(AllocateType::AnyPages, MemoryType::LOADER_DATA, 1)
+                .map_err(|e| error!(e))?;
+            ptr::write_bytes(ptr as *mut u8, 0, PAGE_SIZE);
+            // Since this is not PT, we set the page is writable.
+            level_table[vaddr.get_level_index(level)] = PageEntry::new(ptr, true, false);
+        }
+        // Next page table is definitely set above, so this unwrapping always succeeds.
+        level_table = level_table[vaddr.get_level_index(level)]
+            .next_mut()
+            .unwrap();
+    }
+
+    for i in 0..num_pages {
+        level_table[vaddr.pt_index() + i] =
+            PageEntry::new(phaddr + (i * PAGE_SIZE) as u64, writable, false);
+    }
+
+    Ok(())
 }
 
 /// Wraps [Error] to show where an error occurs.
