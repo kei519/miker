@@ -14,8 +14,24 @@ use util::{
 
 static FB_INFO: OnceStatic<FrameBufferInfo> = OnceStatic::new();
 
+#[repr(align(4096))]
+#[allow(dead_code)]
+struct Stack([u8; 1 * 1024 * 1024]);
+
 #[no_mangle]
-fn _start(fb_info: &FrameBufferInfo, _memmap: &'static MemoryMap, runtime: SystemTable<Runtime>) {
+static mut KERNEL_STACK: Stack = Stack([0; 1 << 20]);
+
+core::arch::global_asm! { r#"
+.global _start
+_start:
+    lea rsp, [KERNEL_STACK + rip]
+    add rsp, 1 * 1024 * 1024 - 8
+    call main
+"#
+}
+
+#[no_mangle]
+fn main(fb_info: &FrameBufferInfo, _memmap: &'static MemoryMap, runtime: SystemTable<Runtime>) {
     let mut screen = GrayscaleScreen::new(fb_info.clone());
     FB_INFO.init(fb_info.clone());
 
