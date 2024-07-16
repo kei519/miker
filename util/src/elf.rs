@@ -1,3 +1,5 @@
+use crate::bitfield::BitField;
+
 /// Represents 64-bit ELF executable header.
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -38,7 +40,7 @@ pub enum ElfFileType {
 #[derive(Debug, Clone)]
 pub struct Elf64Phdr {
     pub ty: ElfProgType,
-    pub flags: u32,
+    pub flags: ElfProgFlags,
     /// Segment file offset.
     pub offset: u64,
     /// Segment virtual address.
@@ -71,4 +73,26 @@ pub enum ElfProgType {
     GnuEhFrame = 0x6474_e550,
     GnuProperty = 0x6474_e553,
     GnuStack = Self::Loos as u32 + 0x0474_e551,
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ElfProgFlags(u32);
+
+impl ElfProgFlags {
+    const EXEC_BIT: u32 = 0;
+    const WRITE_BIT: u32 = 1;
+    const READ_BIT: u32 = 2;
+
+    pub fn executable(&self) -> bool {
+        self.0.get_bit(Self::EXEC_BIT)
+    }
+
+    pub fn writable(&self) -> bool {
+        self.0.get_bit(Self::WRITE_BIT)
+    }
+
+    pub fn readable(&self) -> bool {
+        self.0.get_bit(Self::READ_BIT)
+    }
 }
