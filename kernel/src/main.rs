@@ -35,9 +35,7 @@ fn main(fb_info: &FrameBufferInfo, _memmap: &'static MemoryMap, runtime: SystemT
     let mut screen = GrayscaleScreen::new(fb_info.clone());
     FB_INFO.init(fb_info.clone());
 
-    // Display memmap
     let mut buf = [0; 4096];
-    // 1 memory descritpor length in display.
 
     let rsdp_ptr = runtime
         .config_table()
