@@ -7,6 +7,7 @@ pub mod bitfield;
 pub mod buffer;
 pub mod elf;
 pub mod graphics;
+pub mod paging;
 pub mod pci;
 pub mod screen;
 pub mod sync;
