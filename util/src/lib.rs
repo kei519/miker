@@ -6,6 +6,7 @@
 mod font_data;
 
 pub mod acpi;
+pub mod asmfunc;
 pub mod bitfield;
 pub mod buffer;
 pub mod elf;

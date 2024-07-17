@@ -29,6 +29,7 @@ use uefi::{
     CStr16, Error, Handle, Identify, Status,
 };
 use util::{
+    asmfunc,
     elf::{Elf64Ehdr, Elf64Phdr, ElfProgType},
     paging::{PageEntry, PageTable, VirtualAddress, PAGE_SIZE},
     screen::{FrameBufferInfo, PixelFormat},
@@ -61,7 +62,7 @@ unsafe fn main(image: Handle, mut st: SystemTable<Boot>) -> Status {
 
     // Prevents scrolling screen.
     loop {
-        unsafe { core::arch::asm!("hlt") };
+        asmfunc::hlt();
     }
 }
 
@@ -119,8 +120,7 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
     }
 
     // Allocate memory to set page tables.
-    let current_pml4: u64;
-    core::arch::asm!("mov {}, cr3", out(reg) current_pml4);
+    let current_pml4 = asmfunc::get_cr3();
     let current_pml4 = &*(current_pml4 as *const PageTable);
     let new_pml4 = st
         .boot_services()
@@ -210,7 +210,7 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
     let (runtime_services, memmap) = st.exit_boot_services(MemoryType::LOADER_DATA);
 
     // Set new PML4.
-    core::arch::asm!("mov cr3, {}", in(reg) new_pml4 as *const _ as u64);
+    asmfunc::set_cr3(new_pml4 as *const _ as _);
 
     type EntryFn = extern "sysv64" fn(&FrameBufferInfo, &MemoryMap, SystemTable<Runtime>) -> !;
     let kernel_entry: EntryFn = transmute(elf_header.entry);
@@ -305,6 +305,6 @@ impl Debug for MyError {
 #[panic_handler]
 fn _panic_handler(_info: &core::panic::PanicInfo) -> ! {
     loop {
-        unsafe { core::arch::asm!("hlt") };
+        asmfunc::hlt();
     }
 }

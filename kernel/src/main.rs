@@ -6,6 +6,7 @@ use core::fmt::Write as _;
 use uefi::table::{boot::MemoryMap, cfg::ACPI2_GUID, Runtime, SystemTable};
 use util::{
     acpi::Rsdp,
+    asmfunc,
     buffer::StrBuf,
     graphics::GrayscalePrint as _,
     screen::{FrameBufferInfo, GrayscaleScreen},
@@ -67,7 +68,7 @@ fn main(fb_info: &FrameBufferInfo, _memmap: &'static MemoryMap, runtime: SystemT
     screen.print(buf.to_str(), (0, 0));
 
     loop {
-        unsafe { core::arch::asm!("hlt") };
+        asmfunc::hlt();
     }
 }
 
@@ -82,6 +83,6 @@ fn _panic_handler(info: &core::panic::PanicInfo) -> ! {
     }
 
     loop {
-        unsafe { core::arch::asm!("hlt") };
+        asmfunc::hlt();
     }
 }
