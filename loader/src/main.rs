@@ -154,7 +154,9 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
                 phdr.filesz as _,
             );
             // Set page tables.
-            let num_pages = (phdr.memsz + PAGE_SIZE as u64 - 1) / PAGE_SIZE as u64;
+            // Required page size should be calculated from a start of a page.
+            let offset = phdr.vaddr & 0xfff;
+            let num_pages = (offset + phdr.memsz + PAGE_SIZE as u64 - 1) / PAGE_SIZE as u64;
             set_page_tables(
                 &st,
                 new_pml4,
