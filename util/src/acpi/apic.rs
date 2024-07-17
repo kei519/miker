@@ -1,3 +1,8 @@
+//! MADT (Multiple APIC Description Table) and Interrupt Controller Structure contained by MADT.
+//! See [here].
+//!
+//! [here]:
+//! https://uefi.org/specs/ACPI/6.5/05_ACPI_Software_Programming_Model.html#multiple-apic-description-table-madt
 use core::{
     fmt::{Debug, Display},
     mem, ptr, slice,
@@ -10,6 +15,7 @@ use super::TableHeader;
 /// Represents Multiple APIC Description Table.
 #[repr(C, packed)]
 pub struct Madt {
+    /// [TableHeader].
     header: TableHeader,
     /// The 32-bit physical address at which each processor cah access its local interrupt
     /// contoller.
@@ -26,6 +32,7 @@ pub struct Madt {
 }
 
 impl Madt {
+    /// Retunrs the iterator over this [Madt] interrupt controller.
     pub fn controllers(&self) -> InterruptControllerIter {
         let offset = mem::offset_of!(Self, flags) + mem::size_of::<u32>();
         let len = self.header.len as usize - offset;
@@ -59,6 +66,7 @@ impl Debug for Madt {
     }
 }
 
+/// [InterruptController] iterator.
 pub struct InterruptControllerIter {
     cur: *const u8,
     end: *const u8,
@@ -78,14 +86,19 @@ impl Iterator for InterruptControllerIter {
     }
 }
 
+/// Represents whole [interrupt controllers].
 #[derive(Debug, Clone, Copy)]
 pub enum InterruptController {
+    /// [LocalApic].
     LocalApic(&'static LocalApic),
+    /// [IoApic].
     IoApic(&'static IoApic),
+    /// Represents interrupt controllers that are not supported now.
     Unsupported(UnsupportedInterruptController),
 }
 
 impl InterruptController {
+    /// Returns the pointer pointed the inner interrupt controller.
     pub fn as_ptr(&self) -> *const u8 {
         match self {
             Self::LocalApic(apic) => (*apic as *const LocalApic).cast(),
@@ -112,11 +125,17 @@ impl InterruptController {
     }
 }
 
+/// Represents a type of an interrupt controller defined [here].
+///
+/// [here]:
+/// https://uefi.org/specs/ACPI/6.5/05_ACPI_Software_Programming_Model.html#interrupt-controller-structure-types
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct InterruptControllerType(pub u8);
 
 impl InterruptControllerType {
+    /// Type of a [LocalApic].
     pub const LOCAL_APIC: Self = Self(0);
+    /// Type of a [IoApic].
     pub const IO_APIC: Self = Self(1);
 }
 
@@ -172,9 +191,14 @@ impl Debug for InterruptControllerType {
     }
 }
 
+/// Represents [Local APIC].
+///
+/// [Local APIC]:
+/// https://uefi.org/specs/ACPI/6.5/05_ACPI_Software_Programming_Model.html#processor-local-apic-structure
 #[repr(C, packed)]
 pub struct LocalApic {
-    pub ty: InterruptControllerType,
+    /// Must be 0.
+    ty: InterruptControllerType,
     /// 8.
     length: u8,
     /// The OS associates this Local APIC Structure with a processor object in the namespace when
@@ -183,6 +207,10 @@ pub struct LocalApic {
     pub acpi_processor_uid: u8,
     /// The processor's local APIC ID.
     pub apic_id: u8,
+    /// Local APIC flags. See [here].
+    ///
+    /// [here]:
+    /// https://uefi.org/specs/ACPI/6.5/05_ACPI_Software_Programming_Model.html#local-apic-flags
     pub flags: u32,
 }
 
@@ -220,10 +248,15 @@ impl Debug for LocalApic {
     }
 }
 
+/// Represents [IO APIC].
+///
+/// [IO APIC]:
+/// https://uefi.org/specs/ACPI/6.5/05_ACPI_Software_Programming_Model.html#i-o-apic-structure
 #[repr(C, packed)]
 #[derive(Debug)]
 pub struct IoApic {
-    pub ty: InterruptControllerType,
+    /// Must be 1.
+    ty: InterruptControllerType,
     /// 12.
     length: u8,
     /// The I/O APIC's ID.
@@ -243,8 +276,13 @@ impl IoApic {
     }
 }
 
+/// Represents interrupt controllers defined [here] that are not supported now.
+///
+/// [here]:
+/// https://uefi.org/specs/ACPI/6.5/05_ACPI_Software_Programming_Model.html#interrupt-controller-structure-types
 #[derive(Debug, Clone, Copy)]
 pub struct UnsupportedInterruptController {
+    /// Represents the controller's type.
     pub ty: InterruptControllerType,
     #[allow(unused)]
     data: &'static [u8],

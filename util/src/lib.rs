@@ -1,4 +1,7 @@
+//! Utility library widely used in MIKer.
+
 #![cfg_attr(not(test), no_std)]
+#![deny(missing_docs)]
 
 mod font_data;
 

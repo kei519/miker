@@ -1,5 +1,8 @@
+//! Bit field operations.
+
 use core::ops::RangeBounds;
 
+/// Provides bit field operations.
 pub trait BitField {
     /// Returns whether `self`'s `bit`-th bit is set.
     fn get_bit(&self, bit: u32) -> bool;

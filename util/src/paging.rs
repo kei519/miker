@@ -1,3 +1,5 @@
+//! Provides paging supports.
+
 use core::{
     ops::{Index, IndexMut},
     slice,

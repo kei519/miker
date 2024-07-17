@@ -1,3 +1,5 @@
+//! Provides format string under no [alloc] environments.
+
 use core::fmt::{Error, Write};
 
 /// Provides [Write] implemnted buffer with a given limited buffer.

@@ -1,7 +1,10 @@
+//! Provides PCI supports.
+
 use core::{cell::UnsafeCell, fmt::Debug};
 
 use crate::bitfield::BitField;
 
+/// Represetns a PCI configuration space.
 #[repr(C)]
 #[derive(Debug)]
 pub struct ConfigSpace {
@@ -16,8 +19,11 @@ pub struct ConfigSpace {
     /// Specifies a device specific revision identifier. This field should be viewed as a vendor
     /// defined extension to the `device_id`.
     pub revision_id: u8,
+    /// Specifies register-level interface of a device Function.
     pub interface: u8,
+    /// Identifies more specifically the type of functionalyty that the device Function provides.
     pub sub_class: u8,
+    /// Classifies the type of functionality that the device Function provides.
     pub base_class: u8,
     /// Specifieds the system cachline size in units of DWORDs (32 bits).
     pub cacheline_size: u8,
@@ -55,8 +61,11 @@ pub struct ConfigSpace {
     pub bars: [u32; 6],
     /// Points to the Card Information Structure (CIS) for the CardBus card.
     pub cardbus_cis_pointer: u32,
+    /// Subsystem Vendor ID.
     pub subsystem_vendor_id: u16,
+    /// Subsystem ID.
     pub subsystem_id: u16,
+    /// Expansion ROM base address.
     pub ex_rom_base_addr: u32,
     /// Points to a linked list of new capabilities implemented by this device. This register is
     /// only valid if the "Capabilities List" bit in the Status Register is set. The bottom two
@@ -74,11 +83,12 @@ pub struct ConfigSpace {
     /// microseconds.
     pub max_lat: u8,
 
-    // Fields below are device dependent containing device specific information.
+    /// Fields below are device dependent containing device specific information.
     pub device_dependent_region: [u8; 0xc0],
 }
 
 impl ConfigSpace {
+    /// Returns [Self::cap_ptr] if it is valid.
     pub fn cap_ptr(&self) -> Option<u8> {
         if self.status.get_bit(4) {
             Some(self.cap_ptr & !0b11)

@@ -1,3 +1,5 @@
+//! Useful syncronization primitives.
+
 use core::{
     cell::UnsafeCell,
     hint,

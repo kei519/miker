@@ -1,3 +1,9 @@
+//! ACPI descrpition tables defined by [ACPI Software Programming Model]. ACPI is the key elemnt in
+//! OSPM (Operating System-directed configuration and Power Management.
+//!
+//! [ACPI Software Programming Model]:
+//! https://uefi.org/specs/ACPI/6.5/05_ACPI_Software_Programming_Model.html
+
 use core::{fmt::Debug, mem, ptr, slice};
 
 use self::apic::Madt;
@@ -6,6 +12,7 @@ pub mod apic;
 
 type Result<T> = core::result::Result<T, Error>;
 
+/// Represents an error related to [acpi](self).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
     /// Represents the table's signature is invalid.
@@ -23,6 +30,7 @@ pub enum Error {
     NotSupportedRevision(u8),
     /// Represents the table is unaligned.
     UnAligned,
+    /// Represents the index is out of the range.
     IndexOutOfRange,
 }
 
@@ -157,11 +165,17 @@ impl TableHeader {
 /// Represents whole description tables.
 #[derive(Debug, Clone, Copy)]
 pub enum DescriptionTable {
+    /// [Rsdt].
     Rsdt(&'static Rsdt),
+    /// [Xsdt].
     Xsdt(&'static Xsdt),
+    /// [Fadt].
     Fadt(&'static Fadt),
+    /// [Madt].
     Madt(&'static Madt),
+    /// [Mcfg].
     Mcfg(&'static Mcfg),
+    /// Represents ACPI Description Tables that are not supported now.
     Unsupported(UnsupportedTable),
 }
 
@@ -244,8 +258,6 @@ impl Xsdt {
         Ok(Self::from_header(header))
     }
 
-    /// Returns a reference to [Xsdt] from the header `header` of it. This funtion assumes `header`
-    /// is a proper one for XSDT, so it does NOT check any conditions.
     fn from_header(header: &'static TableHeader) -> &'static Xsdt {
         // Make fat pointer because `Xsdt` contains an unsized field.
         let fat_ptr = ptr::slice_from_raw_parts(
@@ -343,8 +355,6 @@ impl Rsdt {
         Ok(Self::from_header(header))
     }
 
-    /// Returns a reference to [Xsdt] from the header `header` of it. This funtion assumes `header`
-    /// is a proper one for XSDT, so it does NOT check any conditions.
     fn from_header(header: &'static TableHeader) -> &'static Self {
         // Make fat pointer because `Rsdt` contains an unsized field.
         let fat_ptr = ptr::slice_from_raw_parts(
@@ -355,67 +365,169 @@ impl Rsdt {
     }
 }
 
+/// Represents [FADT] (Fixed ACPI Description Table).
+///
+/// [FADT]:
+/// https://uefi.org/specs/ACPI/6.5/05_ACPI_Software_Programming_Model.html#fixed-acpi-description-table-fadt
 #[repr(C, packed)]
 pub struct Fadt {
     header: TableHeader,
+    /// Physical memory address of the [FACS], where OSPM and Firmware exchange control informatin.
+    ///
+    /// [FACS]:
+    /// https://uefi.org/specs/ACPI/6.5/05_ACPI_Software_Programming_Model.html#firmware-acpi-control-structure-facs
     pub firmware_ctrl: u32,
+    /// Physical memory address of the [DSDT]. If [`Fadt::x_dsdt`] field contains non-zero value,
+    /// this field must be ignored.
+    ///
+    /// [DSDT]:
+    /// https://uefi.org/specs/ACPI/6.5/05_ACPI_Software_Programming_Model.html#differentiated-system-description-table-dsdt
     pub dsdt: u32,
-    pub reserved0: u8,
+    /// ACPI 1.0 defined this offset as a field named INT_MODEL, which was eliminated in ACPI 2.0.
+    reserved0: u8,
+    /// Conveys the preferred power management profile to OSPM.
+    ///
+    /// | Value | Description |
+    /// | :---: | :--- |
+    /// | 0 | Unspecified |
+    /// | 1 | Desktop |
+    /// | 2 | Mobile |
+    /// | 3 | Workstation |
+    /// | 4 | Enterprise Server |
+    /// | 5 | SOHO Server |
+    /// | 6 | Appliance PC |
+    /// | 7 | Performance Server |
+    /// | 8 | Tablet |
+    /// | >8 | Reserved |
     pub preferred_pm_profile: u8,
+    /// In 8259 mode, represents system vector the SCI (System Control Interrupt) interrupt wited
+    /// to. Otherwise, contains the Global System interrupt number of the SCI interrupt.
     pub sci_int: u16,
+    /// System port address of the SMI (System Management Interrupt) Command Port.
     pub smi_cmd: u32,
+    /// The value to write to SMI_CMD to disable ownership of the ACPI hardware registers.
     pub acpi_enable: u8,
+    /// The value to write to SMI_CMD to re-enable SMI ownership of the ACPI hardware registers.
     pub acpi_disable: u8,
+    /// The value to write to SMI_CMD to enter the S4BIOS state. The S4BIOS state provides an
+    /// alternate way to enter the S4 state where the firmware saves and restores the memory
+    /// context.
     pub s4bios_req: u8,
+    /// If non-zero, this field contains the value OSPM writes to the SMI_CMD register to assume
+    /// procesor performance state control responsibility.
     pub pstate_cnt: u8,
+    /// System root address of the PM1a Event Register Block.
     pub pm1a_evt_blk: u32,
+    /// System root address of the PM1b Event Register Block.
     pub pm1b_evt_blk: u32,
+    /// System port address of the PM1a Control Registe Block.
     pub pm1a_cnt_blk: u32,
+    /// System port address of the PM1b Control Registe Block.
     pub pm1b_cnt_blk: u32,
+    /// System port address of the PM2 Control Registe Block.
     pub pm2_cnt_blk: u32,
+    /// System port address of the Power Management Timer Control Register Block.
     pub pm_tmr_blk: u32,
+    /// System port address of General-Purpose Event 0 Register Block.
     pub gpe0_blk: u32,
+    /// System port address of General-Purpose Event 1 Register Block.
     pub gpe1_blk: u32,
+    /// Number of bytes decoded by [pm1a_evt_blk](Self::pm1a_evt_blk).
     pub pm1_evt_len: u8,
+    /// Number of bytes decoded by [pm1_cnt_blk](Self::pm1_cnt_blk).
     pub pm1_cnt_len: u8,
+    /// Number of bytes decoded by [pm2_cnt_blk](Self::pm2_cnt_blk).
     pub pm2_cnt_len: u8,
+    /// Number of bytes decoded by [pm_tmr_blk](Self::pm_tmr_blk).
     pub pm_tmr_len: u8,
+    /// The length of the register whose address is given by [x_gpe0_blk](Self::x_gpe0_blk).
     pub gpe0_blk_len: u8,
+    /// The length of the register whose address is given by [x_gpe1_blk](Self::x_gpe1_blk).
     pub gpe1_blk_len: u8,
+    /// Offset within the ACPI general-purpose event model where GPE1 based events start.
     pub gpe1_base: u8,
+    /// If non-zero, this field contains the value OSPM writes to the [smi_cmd](Self::smi_cmd)
+    /// register to indicate OS support for the _CST object and C States Changed notification.
     pub cst_cnt: u8,
+    /// The worst-case hardware latency, in microseconds, to enter and exit a C2 state.
     pub p_lvl2_lat: u16,
+    /// The worst-case hardware latency, in microseconds, to enter and exit a C3 state.
     pub p_lvl3_lat: u16,
+    /// Skip.
+    // TODO: Understand the description below and write a comment.
+    //       https://uefi.org/specs/ACPI/6.5/05_ACPI_Software_Programming_Model.html#fixed-acpi-description-table-fadt
     pub flush_size: u16,
+    /// Skip.
     pub flush_stride: u16,
+    /// The zero-based index of where the processor's duty cycle settings is within the processor's
+    /// P_CNT register.
     pub duty_offset: u8,
+    /// The bit width of the processor's duty cycle setting value in the P_CNT register.
     pub duty_width: u8,
+    /// The RTC CMOS RAM index to the day-of-month alarm value.
     pub day_alrm: u8,
+    /// The RTC CMOS RAM index to the month of year alarm avlue.
     pub mon_alrm: u8,
+    /// The RTC CMOS RAM index to the century of data value.
     pub century: u8,
+    /// IA-PC Boot  Architecture Flags.
     pub iapc_boot_arch: u16,
-    pub reserved1: u8,
+    /// Must be 0.
+    reserved1: u8,
+    /// Fixed feature flags. See [here].
+    ///
+    /// [here]:
+    /// https://uefi.org/specs/ACPI/6.5/05_ACPI_Software_Programming_Model.html#fixed-acpi-description-table-fixed-feature-flags
     pub flags: u32,
+    /// THe address of the reset register representd in Generic Address Structure format.
     pub reset_reg: [u8; 12],
+    /// Indicates the value to write to the [reset_reg](Self::reset_reg) port to reset the system.
     pub reset_value: u8,
+    /// ARM Boot Architecture Flags. See [here].
+    ///
+    /// [here]:
+    /// https://uefi.org/specs/ACPI/6.5/05_ACPI_Software_Programming_Model.html#arm-boot-architecture-flags
     pub arm_boot_arch: u16,
+    /// Minor Version of this [Fadt] structure.
     pub fadt_minor_version: u8,
+    /// Extended physical address of the FACS.
     pub x_firmware_ctrl: u64,
+    /// Extended physical address of the DSDT.
     pub x_dsdt: u64,
+    /// Extended address of the PM1a Event Register Block, represented in Generic Address Structure
+    /// format.
     pub x_pm1a_evt_blk: [u8; 12],
+    /// Extended address of the PM1b Event Register Block, represented in Generic Address Structure
+    /// format.
     pub x_pm1b_evt_blk: [u8; 12],
+    /// Extended address of the PM1a Control Register Block, represented in Generic Address
+    /// Structure format.
     pub x_pm1a_cnt_blk: [u8; 12],
+    /// Extended address of the PM1b Control Register Block, represented in Generic Address
+    /// Structure format.
     pub x_pm1b_cnt_blk: [u8; 12],
+    /// Extended address of the PM2 Control Register Block, represented in Generic Address
+    /// Structure format.
     pub x_pm2_cnt_blk: [u8; 12],
+    /// Extended address of the Power Management Timer Control Register Block, represented in
+    /// Generic Address Structure format.
     pub x_pm_tmr_blk: [u8; 12],
+    /// Extended address of the General-Purpose Event 0 Register Block, represented in Generic
+    /// Address Structure format.
     pub x_gpe0_blk: [u8; 12],
+    /// Extended address of the General-Purpose Event 1 Register Block, represented in Generic
+    /// Address Structure format.
     pub x_gpe1_blk: [u8; 12],
+    /// The address of the Sleep register, represented in Generic Address Structure format.
     pub sleep_control_reg: [u8; 12],
+    /// The address of the Sleep status register, represented in Generic Address Structure format.
     pub sleep_status_reg: [u8; 12],
+    /// 64-bit identifier of hypervisor vendor.
     pub hypervisor_vendor_identity: u64,
 }
 
 impl Fadt {
+    /// Returns [Fadt] Major Version.
     pub fn major_version(&self) -> u8 {
         self.header.revision
     }
@@ -608,6 +720,7 @@ pub struct Mcfg {
 }
 
 impl Mcfg {
+    /// Returns the number of [PcieMmioConfig] this [Mcfg] contains.
     pub fn entries_count(&self) -> usize {
         // There is an 8-byte reserved space.
         (self.header.entries_len() - mem::size_of::<u64>()) / mem::size_of::<PcieMmioConfig>()

@@ -1,3 +1,5 @@
+//! Provides graphical supports.
+
 use crate::font_data;
 
 /// A trait for painting pixels with grayscale.

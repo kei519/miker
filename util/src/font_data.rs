@@ -1,3 +1,6 @@
+//! Provides font data.
+
+/// Returns 8x16 font data for an ASCII character `c`.
 pub const fn get_font(c: u8) -> &'static [u8; 16] {
     match c {
         0x00 => &[
