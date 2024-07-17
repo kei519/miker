@@ -1,21 +1,20 @@
 use core::ops::RangeBounds;
 
 pub trait BitField {
-    /// 指定されたビットのフラグが立っているかを得る。
+    /// Returns whether `self`'s `bit`-th bit is set.
     fn get_bit(&self, bit: u32) -> bool;
-    /// 指定された範囲のビットの値を得る。
+    /// Retunrs `self`'s `bits` range bit value.
     fn get_bits(&self, bits: impl RangeBounds<u32>) -> Self;
-    /// 指定されたビットのフラグを変更する。
+    /// If `value` is `true`, sets `self`'s `bit`-th bit. Otherwise, unsets.
     fn set_bit(&mut self, bit: u32, value: bool);
-    /// 指定された範囲のビットの値を変更する。
+    /// Change `self`'s `bits` range bit to `value`.
     fn set_bits(&mut self, bits: impl RangeBounds<u32>, value: Self);
 }
 
 crate::impl_bit_field!(i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, isize, usize);
 
-/// コンマ区切りで与えられた型に対して、標準的な [BitField] トレイトを実装する。
-/// ビット操作ができること、`BITS` 関連定数が前提になっているため、
-/// それらの条件を満たす型にのみ用いること。
+/// Implements standard [BitField] implementation to the designated types that have bit operations
+/// and the constant `BITS`.
 #[macro_export]
 macro_rules! impl_bit_field {
     () => {};
