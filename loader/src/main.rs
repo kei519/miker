@@ -153,6 +153,12 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
                 phaddr as *mut u8,
                 phdr.filesz as _,
             );
+            // Fill left bytes with 0.
+            ptr::write_bytes(
+                (phaddr + phdr.filesz) as *mut u8,
+                0,
+                (phdr.memsz - phdr.filesz) as _,
+            );
             // Set page tables.
             // Required page size should be calculated from a start of a page.
             let offset = phdr.vaddr & 0xfff;
