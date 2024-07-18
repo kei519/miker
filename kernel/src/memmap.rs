@@ -119,7 +119,10 @@ impl PageMap {
             let block = *brk as *mut PageBlock;
             *brk += mem::size_of::<PageBlock>() as u64;
 
-            let order = (page_count.ilog2() as usize).min(MAX_ORDER);
+            let order = (page_count.ilog2() as usize)
+                .min(MAX_ORDER)
+                // Consider align
+                .min((block_start.trailing_zeros() - PAGE_SIZE.trailing_zeros()) as usize);
             let count = 1 << order;
             // Safety:
             //     * `block` is valid because
