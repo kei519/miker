@@ -9,6 +9,7 @@ use util::{
     asmfunc,
     buffer::StrBuf,
     graphics::GrayscalePrint as _,
+    paging::PAGE_SIZE,
     screen::{FrameBufferInfo, GrayscaleScreen},
     sync::OnceStatic,
 };
@@ -48,6 +49,15 @@ fn main(fb_info: &FrameBufferInfo, memmap: &'static MemoryMap, _runtime: SystemT
         let row = i % num_row;
         screen.print(line, (col * col_len * 8, row * 16));
     }
+    screen.print(buf.to_str(), (0, 0));
+
+    let mut buf = [0; 128];
+    let mut buf = StrBuf::new(&mut buf);
+    let _ = write!(
+        buf,
+        "Free: {} MiB",
+        (PAGE_MAP.free_pages_count() * PAGE_SIZE) >> 20
+    );
     screen.print(buf.to_str(), (0, 0));
 
     loop {
