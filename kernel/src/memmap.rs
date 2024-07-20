@@ -119,6 +119,39 @@ impl PageMap {
         ptr::null_mut()
     }
 
+    /// Free `page_count` pages starting at `start`.
+    ///
+    /// # Safety
+    ///
+    /// - `start` must be the address allocated by [`PageMap::allocated()`] with passing `page_count`
+    ///     as a argument.
+    /// - You can free allocated pages just once.
+    /// - You must never access freed pages.
+    pub unsafe fn free(&self, start: *mut u8, page_count: usize) {
+        let _lock = self.lock();
+        let start = start as u64;
+
+        if let Some(block) = self.pop_cache(true) {
+            block.start = start;
+            block.page_count = page_count;
+            unsafe { self.insert_block_with_merge(block, true) };
+        } else {
+            // Since there is no cached block, we have to allocate a page for blocks. After we do
+            // it, there is no buddy because all buddies whose sizes are smaller than `page_count`
+            // are contained by the block splitted to alloation.
+            //
+            // In short, we don't have to merge surplus pages, and all we have to do is just add
+            // the other pages into [`Self::table`] as continouse pages.
+            let new_start = start + PAGE_SIZE as u64;
+            // Safety:
+            //   * `start` is properly aligned and not null because it is returned value of
+            //     `Self::allocate()`.
+            //   * Memory in pages is guaranteed not to be used by caller.
+            unsafe { self.store_as_cache(start, new_start, true) };
+            self.register_continuous_pages(new_start, page_count - 1, true);
+        }
+    }
+
     /// Returns how many pages are free.
     pub fn free_pages_count(&self) -> usize {
         let _lock = self.lock();
@@ -167,7 +200,37 @@ impl PageMap {
         }
     }
 
+    /// Find the buddy of `block` and merge them recursively, then insert a merged block to the
+    /// [`PageMap::table`].
+    ///
+    /// If you do not need to search the buddy , call [`PageMap::insert_block()`] instead.
+    ///
+    /// # Safety
+    ///
+    /// `block.page_count` must be the power of two and equal to or smaller than 2^{[`MAX_ORDER`]}.
+    unsafe fn insert_block_with_merge(&self, block: &'static mut PageBlock, is_locked: bool) {
+        let _lock = if !is_locked { Some(self.lock()) } else { None };
+
+        while block.page_count <= MAX_ORDER {
+            let order = block.page_count.ilog2() as usize;
+            let buddy_start = block.start ^ (PAGE_SIZE << order) as u64;
+            let Some(buddy_block) = self.remove_block(Some(buddy_start), order, true) else {
+                break;
+            };
+            // The start address of merged block is the minimum of both.
+            block.start = block.start.min(buddy_start);
+            block.page_count *= 2;
+            self.push_cache(buddy_block, true);
+        }
+        // Safety: start address and the number of pages is guaranteed to meet the condition by
+        //     caller and `Self::remove_block` that returns a proper block.
+        unsafe { self.insert_block(block, true) }
+    }
+
     /// Insert `block` to the proper position of [PageMap::table].
+    ///
+    /// This method does not search the buddy and merge with it. If you want to merge `block` and
+    /// the buddy, call [`PageMap::insert_block_with_merge()`] instead.
     ///
     /// # Safety
     ///
