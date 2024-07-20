@@ -9,7 +9,6 @@ use util::{
     asmfunc,
     buffer::StrBuf,
     graphics::GrayscalePrint as _,
-    paging::PAGE_SIZE,
     screen::{FrameBufferInfo, GrayscaleScreen},
     sync::OnceStatic,
 };
@@ -39,6 +38,8 @@ fn main(fb_info: &FrameBufferInfo, memmap: &'static MemoryMap, _runtime: SystemT
     // Safety: There is one processor running and this is the first time to initialize.
     unsafe { PAGE_MAP.init(memmap) };
 
+    let num_free_pages = PAGE_MAP.free_pages_count();
+
     let mut buf = [0; 4 * 4096];
     let mut buf = StrBuf::new(&mut buf);
     let _ = write!(buf, "{:#x?}", PAGE_MAP);
@@ -51,12 +52,35 @@ fn main(fb_info: &FrameBufferInfo, memmap: &'static MemoryMap, _runtime: SystemT
     }
     screen.print(buf.to_str(), (0, 0));
 
+    // Many allocations.
+    let mut starts2 = [[core::ptr::null_mut(); 11]; 20];
+    for starts in &mut starts2 {
+        for (order, start) in starts.iter_mut().enumerate() {
+            *start = PAGE_MAP.allocate(1 << order);
+            assert!(!start.is_null());
+        }
+    }
+    let mut starts = [core::ptr::null_mut(); 11];
+    for (order, start) in starts.iter_mut().enumerate() {
+        *start = PAGE_MAP.allocate(1 << order);
+    }
+    for (order, start) in starts.into_iter().enumerate() {
+        unsafe { PAGE_MAP.free(start, 1 << order) };
+    }
+
+    for starts in starts2 {
+        for (order, start) in starts.into_iter().enumerate() {
+            unsafe { PAGE_MAP.free(start, 1 << order) };
+        }
+    }
+
     let mut buf = [0; 128];
     let mut buf = StrBuf::new(&mut buf);
     let _ = write!(
         buf,
-        "Free: {} MiB",
-        (PAGE_MAP.free_pages_count() * PAGE_SIZE) >> 20
+        "Old Free: {} pages\nCur Free: {} pages",
+        num_free_pages,
+        PAGE_MAP.free_pages_count(),
     );
     screen.print(buf.to_str(), (0, 0));
 
