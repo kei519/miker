@@ -5,7 +5,7 @@ use core::{
     fmt::Debug,
     hint,
     marker::PhantomPinned,
-    mem,
+    mem, ptr,
     sync::atomic::{AtomicBool, Ordering::*},
 };
 
@@ -20,6 +20,7 @@ pub static PAGE_MAP: PageMap = PageMap {
     table: UnsafeCell::new([
         None, None, None, None, None, None, None, None, None, None, None,
     ]),
+    cache: UnsafeCell::new(ptr::null_mut()),
     lock: AtomicBool::new(false),
 };
 
@@ -27,6 +28,8 @@ pub static PAGE_MAP: PageMap = PageMap {
 pub struct PageMap {
     /// Table of [PageBlock] whose orders are 2^0, 2^1, .., 2^{[`MAX_ORDER`]}.
     table: UnsafeCell<[Option<&'static mut PageBlock>; MAX_ORDER + 1]>,
+    /// Linked list holding unused [`PageBlock`]s.
+    cache: UnsafeCell<*mut PageBlock>,
     /// Lock to operate [PageMap] without race conditions.
     lock: AtomicBool,
 }
@@ -47,8 +50,6 @@ impl PageMap {
     pub unsafe fn init(&self, memmap: &'static MemoryMap) {
         let _lock = self.lock();
 
-        // Save the head address to allocate [PageTable].
-        let mut brk = 0;
         // Save a start address of a page block.
         let mut block_start = 0;
         // Save how many pages are continuous.
@@ -70,13 +71,13 @@ impl PageMap {
                 continue;
             }
 
-            self.register_continuous_pages(&mut brk, &mut block_start, &mut page_count, true);
+            self.register_continuous_pages(&mut block_start, &mut page_count, true);
 
             block_start = desc.phys_start;
             page_count = desc.page_count as _;
         }
 
-        self.register_continuous_pages(&mut brk, &mut block_start, &mut page_count, true);
+        self.register_continuous_pages(&mut block_start, &mut page_count, true);
     }
 
     /// Returns how many pages are free.
@@ -94,12 +95,9 @@ impl PageMap {
 
     /// Add a given block that starts at `block_start` and whose size, in page, is `page_count`
     /// into [PageMap::table]. If `page_count` is bigger than 2^{[`MAX_ORDER`]}, insert them after
-    /// splitting it into smaller blocks. Set `brk` to zero at first time.
-    ///
-    /// When `brk` gets not enough to alloate [PageTable], allocate a page from the block fot it.
+    /// splitting it into smaller blocks.
     fn register_continuous_pages(
         &self,
-        brk: &mut u64,
         block_start: &mut u64,
         page_count: &mut usize,
         is_locked: bool,
@@ -107,48 +105,26 @@ impl PageMap {
         let _lock = if !is_locked { Some(self.lock()) } else { None };
 
         while *page_count > 0 {
-            // `brk == 0` means that there is no space to allocate `PageTable`.
-            if *brk == 0 {
-                *brk = *block_start;
-                *block_start += PAGE_SIZE as u64;
+            let Some(block) = self.pop_cache(true) else {
+                let end = *block_start + PAGE_SIZE as u64;
+                unsafe { self.store_as_cache(*block_start, end, true) };
+                *block_start = end;
                 *page_count -= 1;
                 continue;
-            }
-
-            // There is enough space here.
-            let block = *brk as *mut PageBlock;
-            *brk += mem::size_of::<PageBlock>() as u64;
+            };
 
             let order = (page_count.ilog2() as usize)
                 .min(MAX_ORDER)
                 // Consider align
                 .min((block_start.trailing_zeros() - PAGE_SIZE.trailing_zeros()) as usize);
             let count = 1 << order;
-            // Safety:
-            //     * `block` is valid because
-            //        ** `block` is not null.
-            //        ** Each `block` is separeted.
-            //        ** `block` is accessed a thread.
-            //        ** `block` is not a pointer casted to.
-            //
-            //     * `block` is propery aligned because "first" non-zero `brk` is 4 KB aligned and
-            //        just adding to `brk` the size of PageBlock multiple of the align of. (Here,
-            //        "first" means that just after `brk` is 0 and assigned non-zero value.)
-            let block = unsafe {
-                block.write(PageBlock::new(*block_start, count));
-                &mut *block
-            };
+            block.start = *block_start;
+            block.page_count = count;
             // Safety: `count` is a power of two and eqaul to or smaller than 2^{`MAX_ORDER`}.
             unsafe { self.insert_block(block, true) };
 
             *block_start += (count * PAGE_SIZE) as u64;
             *page_count -= count;
-
-            // If there is no enough space to allocate `PageBlock`, set brk to zero to avoid
-            // allocating other objects spaces and indicate allocate a new page.
-            if *brk as usize % PAGE_SIZE > PAGE_SIZE - mem::size_of::<PageBlock>() {
-                *brk = 0;
-            }
         }
     }
 
@@ -167,6 +143,64 @@ impl PageMap {
         mem::swap(&mut table[order], &mut prev);
         block.next = prev;
         table[order] = Some(block);
+    }
+
+    /// Stores memory space \[`start`, `end`) as an linked list of [`PageBlock`]s into
+    /// [`Self::cache`]. Since [`PageBlock`]'s size is bigger than 8 bytes, we use its space to
+    /// store the next [`PageBlock`] pointer.
+    ///
+    /// # Safety
+    ///
+    /// `start` must be properly aligned to [`PageBlock`] and must not be `0` (that is `null`).
+    /// Memory space \[`start`, `end`) must not be used as other objects.
+    unsafe fn store_as_cache(&self, mut start: u64, end: u64, is_locked: bool) {
+        let _lock = if !is_locked { Some(self.lock()) } else { None };
+        let cache = unsafe { &mut *self.cache.get() };
+
+        let mut head = *cache;
+        let block_size = mem::size_of::<PageBlock>() as u64;
+        while start + block_size < end {
+            let cur = start as *mut *mut PageBlock;
+            start += block_size;
+
+            // Safety:
+            //     * `cur` is valid because
+            //        ** `cur` is not null.
+            //        ** Each `cur` is separeted.
+            //        ** `cur` is accessed by a thread.
+            //        ** `cur` is not a pointer casted to.
+            //
+            //     * `cur` is properly aligned.
+            //       First, the alignment of `PageBlock` is equal to or bigger than 8 because of
+            //       the definition, and a raw pointer is 8-byte aligned.
+            //       Second, passed `start` value is properly aligned to `PageBlock` by caller and
+            //       just adding to `start` the size of PageBlock multiple of the align of.
+            //       These mean `cur` is properly aligned to a raw pointer.
+            unsafe { cur.write(head) };
+            head = cur as *mut PageBlock;
+        }
+        *cache = head;
+    }
+
+    /// Pops [`PageBlock`] from [`Self::cache`]'s linked list if it has.
+    fn pop_cache(&self, is_locked: bool) -> Option<&'static mut PageBlock> {
+        let _lock = if !is_locked { Some(self.lock()) } else { None };
+        let cache = unsafe { &mut *self.cache.get() };
+        if cache.is_null() {
+            return None;
+        }
+
+        let head = *cache as *mut *mut PageBlock;
+        // Safety: `Self::cache` should have proper value.
+        let next = unsafe { *head };
+        *cache = next;
+        let ret: *mut PageBlock = head.cast();
+        // Safety: Caches stored in `Self::cache` are constructed by `Self::store_as_cache` that
+        //     alignes them properly.
+        unsafe {
+            ret.write(PageBlock::new(0, 0));
+            Some(&mut *ret.cast())
+        }
     }
 
     /// Disables interrupts and get the lock of `self`. If another thread has lock, spins loop to
