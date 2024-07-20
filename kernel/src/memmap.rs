@@ -80,6 +80,45 @@ impl PageMap {
         self.register_continuous_pages(block_start, page_count, true);
     }
 
+    /// Allocate `page_count` pages and returns the start address. If failed allocating, returns
+    /// null.
+    ///
+    /// Since accepted `page_count` is one of 2^0, 2^1, ..., 2^{[`MAX_ORDER`]}, passing others
+    /// causes failure.
+    pub fn allocate(&self, page_count: usize) -> *mut u8 {
+        let _lock = self.lock();
+
+        // Check `page_count` condition.
+        if !page_count.is_power_of_two() || page_count > 1 << MAX_ORDER {
+            return ptr::null_mut();
+        }
+        let order = page_count.ilog2() as usize;
+
+        // Search a free page whose order is equal to or above `order`.
+        let mut search_order = order;
+        while search_order <= MAX_ORDER {
+            if let Some(block) = self.remove_block(None, search_order, true) {
+                let start = block.start;
+                // Cache the used `PageBlock`.
+                self.push_cache(block, true);
+                if search_order > order {
+                    // When a found block's order is bigger than `order`, there is extra space. So,
+                    // push it back into the tables after splitting it into smaller blocks.
+                    self.register_continuous_pages(
+                        start + (PAGE_SIZE << order) as u64,
+                        (1 << search_order) - page_count,
+                        true,
+                    )
+                }
+                return start as _;
+            }
+            search_order += 1;
+        }
+        // If there is no enough free page whose order is equal to or below `MAX_ORDER`, it's
+        // failure.
+        ptr::null_mut()
+    }
+
     /// Returns how many pages are free.
     pub fn free_pages_count(&self) -> usize {
         let _lock = self.lock();
@@ -182,6 +221,18 @@ impl PageMap {
         *cache = head;
     }
 
+    /// Push `block` to front of [`Self::cache`].
+    fn push_cache(&self, block: &'static mut PageBlock, is_locked: bool) {
+        let _lock = if !is_locked { Some(self.lock()) } else { None };
+        let cache = unsafe { &mut *self.cache.get() };
+
+        let new_cache = (block as *mut PageBlock).cast();
+        // Safety: Since `block` is properly aligned to [`PageBlock`] that is aligned to 8 or above
+        //     bytes, so is `new_cache`, that is sufficient to hold raw pointer.
+        unsafe { *new_cache = *cache };
+        *cache = new_cache.cast();
+    }
+
     /// Pop [`PageBlock`] from [`Self::cache`]'s linked list if it has.
     fn pop_cache(&self, is_locked: bool) -> Option<&'static mut PageBlock> {
         let _lock = if !is_locked { Some(self.lock()) } else { None };
@@ -201,6 +252,84 @@ impl PageMap {
             ret.write(PageBlock::new(0, 0));
             Some(&mut *ret.cast())
         }
+    }
+
+    /// Remove a block from [`Self::table`] and return it if succeeded.
+    ///
+    /// If `start` is `None`, returns one of tables whose orders are `order`. Otherwise, returns
+    /// the table starting at `start`.
+    fn remove_block(
+        &self,
+        start: Option<u64>,
+        order: usize,
+        is_locked: bool,
+    ) -> Option<&'static mut PageBlock> {
+        if order > MAX_ORDER {
+            return None;
+        }
+
+        let _lock = if !is_locked { Some(self.lock()) } else { None };
+        let table = unsafe { &mut *self.table.get() };
+
+        // Check each block following `table[order]` one by one. To do so, we have to disconnect
+        // the next block from each because of Rust borrowing rule.
+        // So, we hold the original value of `table[order]` as `head`, the tail of the linked list
+        // starting with `head ` as `tail`, and the original value of `tail.next` as `next` after
+        // separated from `tail`.
+        let mut head = None;
+        mem::swap(&mut table[order], &mut head);
+        // `head` meets the condition above now.
+
+        // If `table[order]` was `None`, there is no block whose order is `order`.
+        let head = head?;
+        let mut next = None;
+        mem::swap(&mut head.next, &mut next);
+        // `next` meets the condition above now.
+
+        if start.is_none() {
+            mem::swap(&mut table[order], &mut next);
+            return Some(head);
+        }
+
+        // Here, `starts` is `Some` because we already handled `None` case.
+        let start = start.unwrap();
+        // Since `tail` can't hold `head` because of Rust borrowing check, we are handling the case
+        // where `head` is the wanted block here.
+        if start == head.start {
+            mem::swap(&mut table[order], &mut next);
+            return Some(head);
+        }
+
+        let mut tail = &mut head.next;
+        // Check if `next` is the wanted one.
+        while let Some(cur) = next {
+            next = None;
+            mem::swap(&mut cur.next, &mut next);
+            // Now
+            //
+            // 1. `block[order]` ( = `head` ) -> ... -> `tail` -> `cur` -> `next` -> ...
+            //
+            // becomes
+            //
+            // 1. `block[order]` == `None`
+            // 2. `head` -> ... -> `tail`
+            // 3. `next` -> ...
+            // and
+            // 4. `cur` <- check this!
+
+            if start == cur.start {
+                if let Some(tail) = tail {
+                    tail.next = next;
+                    table[order] = Some(head);
+                    return Some(cur);
+                }
+            }
+            *tail = Some(cur);
+            tail = &mut tail.as_mut().unwrap().next;
+        }
+        table[order] = Some(head);
+
+        None
     }
 
     /// Disables interrupts and get the lock of `self`. If another thread has lock, spins loop to
