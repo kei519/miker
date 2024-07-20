@@ -71,13 +71,13 @@ impl PageMap {
                 continue;
             }
 
-            self.register_continuous_pages(&mut block_start, &mut page_count, true);
+            self.register_continuous_pages(block_start, page_count, true);
 
             block_start = desc.phys_start;
             page_count = desc.page_count as _;
         }
 
-        self.register_continuous_pages(&mut block_start, &mut page_count, true);
+        self.register_continuous_pages(block_start, page_count, true);
     }
 
     /// Returns how many pages are free.
@@ -98,18 +98,18 @@ impl PageMap {
     /// splitting it into smaller blocks.
     fn register_continuous_pages(
         &self,
-        block_start: &mut u64,
-        page_count: &mut usize,
+        mut block_start: u64,
+        mut page_count: usize,
         is_locked: bool,
     ) {
         let _lock = if !is_locked { Some(self.lock()) } else { None };
 
-        while *page_count > 0 {
+        while page_count > 0 {
             let Some(block) = self.pop_cache(true) else {
-                let end = *block_start + PAGE_SIZE as u64;
-                unsafe { self.store_as_cache(*block_start, end, true) };
-                *block_start = end;
-                *page_count -= 1;
+                let end = block_start + PAGE_SIZE as u64;
+                unsafe { self.store_as_cache(block_start, end, true) };
+                block_start = end;
+                page_count -= 1;
                 continue;
             };
 
@@ -118,13 +118,13 @@ impl PageMap {
                 // Consider align
                 .min((block_start.trailing_zeros() - PAGE_SIZE.trailing_zeros()) as usize);
             let count = 1 << order;
-            block.start = *block_start;
+            block.start = block_start;
             block.page_count = count;
             // Safety: `count` is a power of two and eqaul to or smaller than 2^{`MAX_ORDER`}.
             unsafe { self.insert_block(block, true) };
 
-            *block_start += (count * PAGE_SIZE) as u64;
-            *page_count -= count;
+            block_start += (count * PAGE_SIZE) as u64;
+            page_count -= count;
         }
     }
 
