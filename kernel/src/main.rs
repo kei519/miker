@@ -18,7 +18,7 @@ static FB_INFO: OnceStatic<FrameBufferInfo> = OnceStatic::new();
 
 #[repr(align(4096))]
 #[allow(dead_code)]
-struct Stack([u8; 1 * 1024 * 1024]);
+struct Stack([u8; 1 << 20]);
 
 #[no_mangle]
 static mut KERNEL_STACK: Stack = Stack([0; 1 << 20]);
