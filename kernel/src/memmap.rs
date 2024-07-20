@@ -145,7 +145,7 @@ impl PageMap {
         table[order] = Some(block);
     }
 
-    /// Stores memory space \[`start`, `end`) as an linked list of [`PageBlock`]s into
+    /// Store memory space \[`start`, `end`) as an linked list of [`PageBlock`]s into
     /// [`Self::cache`]. Since [`PageBlock`]'s size is bigger than 8 bytes, we use its space to
     /// store the next [`PageBlock`] pointer.
     ///
@@ -182,7 +182,7 @@ impl PageMap {
         *cache = head;
     }
 
-    /// Pops [`PageBlock`] from [`Self::cache`]'s linked list if it has.
+    /// Pop [`PageBlock`] from [`Self::cache`]'s linked list if it has.
     fn pop_cache(&self, is_locked: bool) -> Option<&'static mut PageBlock> {
         let _lock = if !is_locked { Some(self.lock()) } else { None };
         let cache = unsafe { &mut *self.cache.get() };
