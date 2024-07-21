@@ -3,6 +3,8 @@
 
 use core::fmt::Write as _;
 
+use alloc::vec;
+use alloc::{boxed::Box, vec::Vec};
 use kernel::memmap::PAGE_MAP;
 use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
 use util::{
@@ -12,6 +14,8 @@ use util::{
     screen::{FrameBufferInfo, GrayscaleScreen},
     sync::OnceStatic,
 };
+
+extern crate alloc;
 
 static FB_INFO: OnceStatic<FrameBufferInfo> = OnceStatic::new();
 
@@ -38,19 +42,12 @@ fn main(fb_info: &FrameBufferInfo, memmap: &'static MemoryMap, _runtime: SystemT
     // Safety: There is one processor running and this is the first time to initialize.
     unsafe { PAGE_MAP.init(memmap) };
 
-    let num_free_pages = PAGE_MAP.free_pages_count();
-
     let mut buf = [0; 4 * 4096];
     let mut buf = StrBuf::new(&mut buf);
-    let _ = write!(buf, "{:#x?}", PAGE_MAP);
-    let num_row = FB_INFO.as_ref().vertical_resolution / 16;
-    let col_len = 30;
-    for (i, line) in buf.to_str().lines().enumerate() {
-        let col = i / num_row;
-        let row = i % num_row;
-        screen.print(line, (col * col_len * 8, row * 16));
-    }
-    screen.print(buf.to_str(), (0, 0));
+
+    let num_free_pages = PAGE_MAP.free_pages_count();
+    let _ = writeln!(buf, "Free: {} pages", num_free_pages);
+    let _ = writeln!(buf);
 
     // Many allocations.
     let mut starts2 = [[core::ptr::null_mut(); 11]; 20];
@@ -74,14 +71,82 @@ fn main(fb_info: &FrameBufferInfo, memmap: &'static MemoryMap, _runtime: SystemT
         }
     }
 
-    let mut buf = [0; 128];
-    let mut buf = StrBuf::new(&mut buf);
-    let _ = write!(
-        buf,
-        "Old Free: {} pages\nCur Free: {} pages",
-        num_free_pages,
-        PAGE_MAP.free_pages_count(),
-    );
+    let _ = writeln!(buf, "Large allocation");
+    {
+        let mut v = vec![94; 1028];
+        let _ = writeln!(buf, "v: {:p}, cap: {}", v.as_ptr(), v.capacity());
+        v.extend_from_slice(&[1024; 10]);
+        let _ = writeln!(buf, "v: {:p}, cap: {}", v.as_ptr(), v.capacity());
+        v.extend_from_slice(&[512; 10]);
+        let _ = writeln!(buf, "v: {:p}, cap: {}", v.as_ptr(), v.capacity());
+        let _ = writeln!(buf);
+        for (i, item) in v.into_iter().enumerate() {
+            match i {
+                0..=1027 => assert_eq!(item, 94),
+                1028..=1037 => assert_eq!(item, 1024),
+                1038..=1047 => assert_eq!(item, 512),
+                _ => unreachable!(),
+            }
+        }
+    }
+
+    let _ = writeln!(buf, "First small some allocations");
+    {
+        let mut v = vec![0; 16];
+        let _ = writeln!(buf, "v: {:p}, cap: {}", v.as_ptr(), v.capacity());
+        v.extend_from_slice(&[1024; 16]);
+        let _ = writeln!(buf, "v: {:p}, cap: {}", v.as_ptr(), v.capacity());
+        let us: Vec<_> = (0..10).map(|_| v.clone()).collect();
+        for (i, u) in us.iter().enumerate() {
+            let _ = writeln!(buf, "u{i}: {:p}, cap: {}", u.as_ptr(), u.capacity());
+        }
+        let _ = writeln!(buf);
+    }
+
+    let _ = writeln!(buf, "Second some small and large allocations");
+    {
+        let mut v = vec![0i8; 16];
+        let _ = writeln!(buf, "v: {:p}, cap: {}", v.as_ptr(), v.capacity());
+        v.extend_from_slice(&[i8::MIN; 16]);
+        let _ = writeln!(buf, "v: {:p}, cap: {}", v.as_ptr(), v.capacity());
+        let us: Vec<_> = (0..10)
+            .map(|_| {
+                let hoge = vec![0; 64];
+                core::hint::black_box(&hoge);
+                v.clone()
+            })
+            .collect();
+        for (i, u) in us.iter().enumerate() {
+            let _ = writeln!(buf, "u{i}: {:p}, cap: {}", u.as_ptr(), u.capacity());
+        }
+        let _ = writeln!(buf);
+    }
+
+    let _ = writeln!(buf, "Third some small allocations");
+    {
+        let mut v = vec![0i8; 16];
+        let _ = writeln!(buf, "v: {:p}, cap: {}", v.as_ptr(), v.capacity());
+        v.extend_from_slice(&[i8::MIN; 16]);
+        let _ = writeln!(buf, "v: {:p}, cap: {}", v.as_ptr(), v.capacity());
+        let us: Vec<_> = (0..10).map(|_| v.clone()).collect();
+        for (i, u) in us.iter().enumerate() {
+            let _ = writeln!(buf, "u{i}: {:p}, cap: {}", u.as_ptr(), u.capacity());
+        }
+        let _ = writeln!(buf);
+    }
+
+    let _ = writeln!(buf, "Some box allocations");
+    {
+        let b = Box::new(0u8);
+        let _ = writeln!(buf, "b: {:p}", Box::into_raw(b));
+        let us: Vec<_> = (0..10).map(|_| Box::new(12u16)).collect();
+        for (i, b) in us.into_iter().enumerate() {
+            let _ = writeln!(buf, "b{i}: {:p}", Box::into_raw(b));
+        }
+        let _ = writeln!(buf);
+    }
+
+    let _ = writeln!(buf, "Free: {} pages", PAGE_MAP.free_pages_count());
     screen.print(buf.to_str(), (0, 0));
 
     loop {
