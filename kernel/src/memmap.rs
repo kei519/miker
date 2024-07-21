@@ -1,16 +1,9 @@
 //! Provide memmap features.
 
-use core::{
-    cell::UnsafeCell,
-    fmt::Debug,
-    hint,
-    marker::PhantomPinned,
-    mem, ptr,
-    sync::atomic::{AtomicBool, Ordering::*},
-};
+use core::{cell::UnsafeCell, fmt::Debug, marker::PhantomPinned, mem, ptr};
 
 use uefi::table::boot::{MemoryMap, MemoryType};
-use util::{asmfunc, paging::PAGE_SIZE};
+use util::{paging::PAGE_SIZE, sync::InterruptFreeMutex};
 
 /// Max order of the buddy system.
 pub const MAX_ORDER: usize = 10;
@@ -21,7 +14,7 @@ pub static PAGE_MAP: PageMap = PageMap {
         None, None, None, None, None, None, None, None, None, None, None,
     ]),
     cache: UnsafeCell::new(Cache::new()),
-    lock: AtomicBool::new(false),
+    lock: InterruptFreeMutex::new(()),
 };
 
 /// Holds page map info, allocate and free pages with using buddy system.
@@ -31,7 +24,7 @@ pub struct PageMap {
     /// Linked list holding unused [`PageBlock`]s.
     cache: UnsafeCell<Cache<PageBlock>>,
     /// Lock to operate [PageMap] without race conditions.
-    lock: AtomicBool,
+    lock: InterruptFreeMutex<()>,
 }
 
 // Safety: `PageMap` does not provide any method to directly change interior values. We take
@@ -48,7 +41,7 @@ impl PageMap {
     /// Since [PageMap] does not save whether it is initialized, causes UB if you call this more
     /// than once.
     pub unsafe fn init(&self, memmap: &'static MemoryMap) {
-        let _lock = self.lock();
+        let _lock = self.lock.lock();
 
         // Save a start address of a page block.
         let mut block_start = 0;
@@ -86,7 +79,7 @@ impl PageMap {
     /// Since accepted `page_count` is one of 2^0, 2^1, ..., 2^{[`MAX_ORDER`]}, passing others
     /// causes failure.
     pub fn allocate(&self, page_count: usize) -> *mut u8 {
-        let _lock = self.lock();
+        let _lock = self.lock.lock();
 
         // Check `page_count` condition.
         if !page_count.is_power_of_two() || page_count > 1 << MAX_ORDER {
@@ -127,7 +120,7 @@ impl PageMap {
     /// - You can free allocated pages just once.
     /// - You must never access freed pages.
     pub unsafe fn free(&self, start: *mut u8, page_count: usize) {
-        let _lock = self.lock();
+        let _lock = self.lock.lock();
         let start = start as u64;
 
         if let Some(block) = self.pop_cache(true) {
@@ -153,7 +146,7 @@ impl PageMap {
 
     /// Returns how many pages are free.
     pub fn free_pages_count(&self) -> usize {
-        let _lock = self.lock();
+        let _lock = self.lock.lock();
         let table = unsafe { &*self.table.get() };
         let ret = table.iter().fold(0, |acc, block| {
             acc + block
@@ -173,7 +166,11 @@ impl PageMap {
         mut page_count: usize,
         is_locked: bool,
     ) {
-        let _lock = if !is_locked { Some(self.lock()) } else { None };
+        let _lock = if !is_locked {
+            Some(self.lock.lock())
+        } else {
+            None
+        };
 
         while page_count > 0 {
             let Some(block) = self.pop_cache(true) else {
@@ -208,7 +205,11 @@ impl PageMap {
     ///
     /// `block.page_count` must be the power of two and no more than 2^{[`MAX_ORDER`]}.
     unsafe fn insert_block_with_merge(&self, block: &'static mut PageBlock, is_locked: bool) {
-        let _lock = if !is_locked { Some(self.lock()) } else { None };
+        let _lock = if !is_locked {
+            Some(self.lock.lock())
+        } else {
+            None
+        };
 
         while block.page_count <= MAX_ORDER {
             let order = block.page_count.ilog2() as usize;
@@ -235,7 +236,11 @@ impl PageMap {
     ///
     /// `block.page_count` must be the power of two and no more than 2^{[`MAX_ORDER`]}.
     unsafe fn insert_block(&self, block: &'static mut PageBlock, is_locked: bool) {
-        let _lock = if !is_locked { Some(self.lock()) } else { None };
+        let _lock = if !is_locked {
+            Some(self.lock.lock())
+        } else {
+            None
+        };
 
         let table = unsafe { &mut *self.table.get() };
 
@@ -255,7 +260,11 @@ impl PageMap {
     /// `start` must be properly aligned to [`PageBlock`] and must not be `0` (that is null).
     /// Memory space \[`start`, `end`) must not be used as other objects.
     unsafe fn store_as_cache(&self, mut start: u64, end: u64, is_locked: bool) {
-        let _lock = if !is_locked { Some(self.lock()) } else { None };
+        let _lock = if !is_locked {
+            Some(self.lock.lock())
+        } else {
+            None
+        };
         let cache = unsafe { &mut *self.cache.get() };
 
         let block_size = mem::size_of::<PageBlock>() as u64;
@@ -268,7 +277,11 @@ impl PageMap {
 
     /// Pushes `block` to front of [`Self::cache`].
     fn push_cache(&self, block: &'static mut PageBlock, is_locked: bool) {
-        let _lock = if !is_locked { Some(self.lock()) } else { None };
+        let _lock = if !is_locked {
+            Some(self.lock.lock())
+        } else {
+            None
+        };
         let cache = unsafe { &mut *self.cache.get() };
 
         cache.push(block);
@@ -276,7 +289,11 @@ impl PageMap {
 
     /// Pops [`PageBlock`] from [`Self::cache`]'s linked list if it has.
     fn pop_cache(&self, is_locked: bool) -> Option<&'static mut PageBlock> {
-        let _lock = if !is_locked { Some(self.lock()) } else { None };
+        let _lock = if !is_locked {
+            Some(self.lock.lock())
+        } else {
+            None
+        };
         let cache = unsafe { &mut *self.cache.get() };
         cache.pop_next()
     }
@@ -295,7 +312,11 @@ impl PageMap {
             return None;
         }
 
-        let _lock = if !is_locked { Some(self.lock()) } else { None };
+        let _lock = if !is_locked {
+            Some(self.lock.lock())
+        } else {
+            None
+        };
         let table = unsafe { &mut *self.table.get() };
 
         // Check each block following `table[order]` one by one. To do so, we have to disconnect
@@ -358,44 +379,17 @@ impl PageMap {
 
         None
     }
-
-    /// Disables interrupts and get the lock of `self`. If another thread has lock, spins loop to
-    /// get.
-    fn lock(&self) -> Lock<'_> {
-        asmfunc::cli();
-        while self
-            .lock
-            .compare_exchange_weak(false, true, Acquire, Relaxed)
-            .is_err()
-        {
-            asmfunc::sti();
-            hint::spin_loop();
-            asmfunc::cli();
-        }
-        Lock(&self.lock)
-    }
 }
 
 impl Debug for PageMap {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let _lock = self.lock();
+        let _lock = self.lock.lock();
         let table = unsafe { &*self.table.get() };
         let mut list = f.debug_list();
         for entry in table {
             list.entry(entry);
         }
         list.finish()
-    }
-}
-
-/// Provides the unlock feature as [`Drop::drop`].
-#[must_use = "Droping Lock causes immediately release the lock."]
-struct Lock<'a>(&'a AtomicBool);
-
-impl<'a> Drop for Lock<'a> {
-    fn drop(&mut self) {
-        self.0.store(false, Release);
-        asmfunc::sti();
     }
 }
 
