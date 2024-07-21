@@ -368,7 +368,9 @@ impl PageMap {
             .compare_exchange_weak(false, true, Acquire, Relaxed)
             .is_err()
         {
+            asmfunc::sti();
             hint::spin_loop();
+            asmfunc::cli();
         }
         Lock(&self.lock)
     }
