@@ -4,8 +4,11 @@ use core::{
     cell::UnsafeCell,
     hint,
     mem::MaybeUninit,
+    ops::{Deref, DerefMut},
     sync::atomic::{self, AtomicBool, Ordering::*},
 };
+
+use crate::asmfunc;
 
 /// Immutable static variable that will be initialized after running program. You cannot change
 /// inner value after you once initialized.
@@ -141,5 +144,82 @@ impl<T> AsRef<T> for OnceStatic<T> {
         // Safety: Once `is_initialized` set to `true` after initializing, no one overwriter
         //      `data`. This leads there is no data rece.
         unsafe { (*self.data.get()).assume_init_ref() }
+    }
+}
+
+/// Provides a mutex lock with disabling interrupts until release the lock.
+pub struct InterruptFreeMutex<T> {
+    /// Data guarded by the lock.
+    data: UnsafeCell<T>,
+    /// Represents whether someone has the lock.
+    locker: AtomicBool,
+}
+
+impl<T> InterruptFreeMutex<T> {
+    /// Constructs new [`InterruptFreeMutex`] whose initial value is `value`.
+    pub const fn new(value: T) -> Self {
+        Self {
+            data: UnsafeCell::new(value),
+            locker: AtomicBool::new(false),
+        }
+    }
+
+    /// Trys to take a lock, and if succeeds returns the guard. Otherwise, returns `None`.
+    pub fn try_lock(&self) -> Option<InterruptFreeMutexGuard<'_, T>> {
+        asmfunc::cli();
+
+        if self.locker.swap(true, Relaxed) {
+            asmfunc::sti();
+            None
+        } else {
+            // Since we don't need `Acquire` when failed, put fence here.
+            atomic::fence(Acquire);
+            Some(InterruptFreeMutexGuard {
+                data: unsafe { &mut *self.data.get() },
+                locker: &self.locker,
+            })
+        }
+    }
+
+    /// Until succeeding acuiring the lock, spins loop. Then returns the guard.
+    ///
+    /// If you do not need to lock definitely, use [`InterruptFreeMutex::try_lock()`] instead.
+    pub fn lock(&self) -> InterruptFreeMutexGuard<'_, T> {
+        loop {
+            match self.try_lock() {
+                Some(guard) => break guard,
+                None => hint::spin_loop(),
+            }
+        }
+    }
+}
+
+/// Provides exclusive access to a data guarded by lock.
+#[must_use = "Droping lock causes immediately release the lock."]
+pub struct InterruptFreeMutexGuard<'this, T> {
+    /// Guarded data.
+    data: &'this mut T,
+    /// Reference to value representing whether it is locked. Used to release the lock.
+    locker: &'this AtomicBool,
+}
+
+impl<'this, T> Deref for InterruptFreeMutexGuard<'this, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.data
+    }
+}
+
+impl<'this, T> DerefMut for InterruptFreeMutexGuard<'this, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.data
+    }
+}
+
+impl<'this, T> Drop for InterruptFreeMutexGuard<'this, T> {
+    fn drop(&mut self) {
+        self.locker.store(false, Release);
+        asmfunc::sti();
     }
 }
