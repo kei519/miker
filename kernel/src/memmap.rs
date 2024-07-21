@@ -1,14 +1,24 @@
 //! Provide memmap features.
 
-use core::{cell::UnsafeCell, fmt::Debug, marker::PhantomPinned, mem, ptr};
+use core::{
+    alloc::{GlobalAlloc, Layout},
+    cell::UnsafeCell,
+    fmt::Debug,
+    marker::PhantomPinned,
+    mem, ptr,
+};
 
 use uefi::table::boot::{MemoryMap, MemoryType};
 use util::{paging::PAGE_SIZE, sync::InterruptFreeMutex};
 
 /// Represents word size of environment.
 pub const WORD_SIZE: usize = mem::size_of::<usize>();
+
 /// Max order of the buddy system.
 pub const MAX_ORDER: usize = 10;
+
+/// Number of caches stored in [`Global`] allocator.
+const NUM_CHACHES: usize = (PAGE_SIZE.trailing_zeros() - WORD_SIZE.trailing_zeros()) as usize;
 
 /// [PageMap] for this kernel.
 pub static PAGE_MAP: PageMap = PageMap {
@@ -18,6 +28,113 @@ pub static PAGE_MAP: PageMap = PageMap {
     cache: UnsafeCell::new(Cache::new()),
     lock: InterruptFreeMutex::new(()),
 };
+
+/// [`Global`] allocator for this kernel.
+#[global_allocator]
+static GLOBAL: Global = Global {
+    start: UnsafeCell::new(0),
+    end: UnsafeCell::new(0),
+    caches: UnsafeCell::new([Cache::new(); NUM_CHACHES]),
+    lock: InterruptFreeMutex::new(()),
+};
+
+/// Holds data required for global allocators.
+struct Global {
+    /// Start address of memory where this can allocate.
+    start: UnsafeCell<u64>,
+    /// End address of memory where this can allocate.
+    end: UnsafeCell<u64>,
+    /// Unused memory spaces' caches.
+    caches: UnsafeCell<[Cache<usize>; NUM_CHACHES]>,
+    /// Lock to operate [`Global`] without race conditions.
+    lock: InterruptFreeMutex<()>,
+}
+
+// Safety: `Global` does not provide any method to directly change interior values. We take
+//     lock and disables interrupts when change values in methods. This guarantees there is no race
+//     condition.
+unsafe impl Sync for Global {}
+
+unsafe impl GlobalAlloc for Global {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let size = calc_alloc_size(layout);
+        // When required size is page size or more, just make PageMap allocate the proper size.
+        if size >= PAGE_SIZE {
+            return PAGE_MAP.allocate(size / PAGE_SIZE);
+        }
+
+        // Calculate the index of caches from `size`. `size` is assumed a power of two.
+        let index = |size: usize| (size / WORD_SIZE).ilog2() as usize;
+
+        let _lock = self.lock.lock();
+        let caches = unsafe { &mut *self.caches.get() };
+        let start = unsafe { &mut *self.start.get() };
+        let end = unsafe { &mut *self.end.get() };
+
+        if let Some(cache) = caches[index(size)].pop_next() {
+            return (cache as *mut usize).cast();
+        }
+
+        // If there is no cache for `size` bytes, allocate new memory with caching memory until
+        // `start` gets properly aligned.
+        loop {
+            // If there is no space to allocate, let PageMap allocate a page.
+            if *start >= *end {
+                *start = PAGE_MAP.allocate(1) as _;
+                *end = *start + PAGE_SIZE as u64;
+            }
+
+            let align_pow = start.trailing_zeros().min(size.trailing_zeros());
+            let cache_size = 1 << align_pow;
+            let ptr = *start as *mut u8;
+            *start += cache_size as u64;
+            if cache_size == size {
+                return ptr;
+            } else {
+                // Safety:
+                //   * `ptr` is valid.
+                //       ** `ptr` is not null because PageMap does not allocate it.
+                //       ** Others will not access to `ptr` because we now have lock and update
+                //            `start`.
+                //   * The `ptr` is a raw pointer whose size is word size.
+                //   * `ptr` is properly aligned because we take all `ptr` is aligned to word size
+                //       or more.
+                unsafe { caches[index(cache_size)].push_ptr(ptr.cast()) }
+            }
+        }
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        let size = calc_alloc_size(layout);
+        if size >= PAGE_SIZE {
+            unsafe { PAGE_MAP.free(ptr, size / PAGE_SIZE) };
+        } else {
+            let _lock = self.lock.lock();
+            let caches = unsafe { &mut *self.caches.get() };
+            let index = (size / WORD_SIZE).ilog2() as usize;
+            unsafe { caches[index].push_ptr(ptr as *mut usize) };
+        }
+    }
+
+    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        let new_layout = unsafe { Layout::from_size_align_unchecked(new_size, layout.align()) };
+        // Since allocation size is not the same as `layout.size()`, `layout.size()` and `new_size`
+        // can be the same. When so, we do not do anything.
+        if calc_alloc_size(layout) == calc_alloc_size(new_layout) {
+            ptr
+        } else {
+            // Same implementation as the default.
+            let new_ptr = unsafe { self.alloc(new_layout) };
+            if !new_ptr.is_null() {
+                unsafe {
+                    ptr::copy_nonoverlapping(ptr, new_ptr, layout.size().min(new_size));
+                    self.dealloc(ptr, layout);
+                }
+            }
+            new_ptr
+        }
+    }
+}
 
 /// Holds page map info, allocate and free pages with using buddy system.
 pub struct PageMap {
@@ -453,7 +570,7 @@ impl Debug for PageBlock {
 /// However, the first item, head of linked list should be put on the stack, and do not use as
 /// others objects.
 #[repr(transparent)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 struct Cache<T>(*mut Cache<T>);
 
 impl<T> Cache<T> {
@@ -543,5 +660,18 @@ impl<T: Default> Cache<T> {
 impl<T> Default for Cache<T> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Calculates allocation memory size by `layout`. Returned value is the power of two and no less
+/// than [`WORD_SIZE`]. In short, returns the minimal value of LHS that satisfies
+/// `2^n * layout.align() >= layout.size()`.
+fn calc_alloc_size(layout: Layout) -> usize {
+    if layout.size() <= WORD_SIZE {
+        WORD_SIZE
+    } else {
+        // Ceil of the log2 (size / align).
+        let pow = (layout.size() / layout.align() - 1).ilog2() + 1;
+        layout.align() << pow
     }
 }
