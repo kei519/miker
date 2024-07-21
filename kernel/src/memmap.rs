@@ -40,7 +40,7 @@ pub struct PageMap {
 unsafe impl Sync for PageMap {}
 
 impl PageMap {
-    /// Initialize [PageMap] with `memmap`. Considers [MemoryType::BOOT_SERVICES_CODE],
+    /// Initializes [PageMap] with `memmap`. Considers [MemoryType::BOOT_SERVICES_CODE],
     /// [MemoryType::BOOT_SERVICES_DATA] and [MemoryType::CONVENTIONAL] are usable.
     ///
     /// # Safety
@@ -80,7 +80,7 @@ impl PageMap {
         self.register_continuous_pages(block_start, page_count, true);
     }
 
-    /// Allocate `page_count` pages and returns the start address. If failed allocating, returns
+    /// Allocates `page_count` pages and returns the start address. If failed allocating, returns
     /// null.
     ///
     /// Since accepted `page_count` is one of 2^0, 2^1, ..., 2^{[`MAX_ORDER`]}, passing others
@@ -118,12 +118,12 @@ impl PageMap {
         ptr::null_mut()
     }
 
-    /// Free `page_count` pages starting at `start`.
+    /// Frees `page_count` pages starting at `start`.
     ///
     /// # Safety
     ///
-    /// - `start` must be the address allocated by [`PageMap::allocated()`] with passing `page_count`
-    ///     as a argument.
+    /// - `start` must be the address allocated by [`PageMap::allocated()`] with passing
+    ///     `page_count` as a argument.
     /// - You can free allocated pages just once.
     /// - You must never access freed pages.
     pub unsafe fn free(&self, start: *mut u8, page_count: usize) {
@@ -164,9 +164,9 @@ impl PageMap {
         ret
     }
 
-    /// Add a given block that starts at `block_start` and whose size, in page, is `page_count`
-    /// into [PageMap::table]. If `page_count` is greater than 2^{[`MAX_ORDER`]}, insert them after
-    /// splitting it into smaller blocks.
+    /// Adds a given block that starts at `block_start` and whose size, in page, is `page_count`
+    /// into [PageMap::table]. If `page_count` is greater than 2^{[`MAX_ORDER`]}, inserts them
+    /// after splitting it into smaller blocks.
     fn register_continuous_pages(
         &self,
         mut block_start: u64,
@@ -199,7 +199,7 @@ impl PageMap {
         }
     }
 
-    /// Find the buddy of `block` and merge them recursively, then insert a merged block to the
+    /// Finds the buddy of `block` and merge them recursively, then inserts a merged block to the
     /// [`PageMap::table`].
     ///
     /// If you do not need to search the buddy , call [`PageMap::insert_block()`] instead.
@@ -226,7 +226,7 @@ impl PageMap {
         unsafe { self.insert_block(block, true) }
     }
 
-    /// Insert `block` to the proper position of [PageMap::table].
+    /// Inserts `block` to the proper position of [PageMap::table].
     ///
     /// This method does not search the buddy and merge with it. If you want to merge `block` and
     /// the buddy, call [`PageMap::insert_block_with_merge()`] instead.
@@ -246,13 +246,13 @@ impl PageMap {
         table[order] = Some(block);
     }
 
-    /// Store memory space \[`start`, `end`) as an linked list of [`PageBlock`]s into
+    /// Stores memory space \[`start`, `end`) as an linked list of [`PageBlock`]s into
     /// [`Self::cache`]. Since [`PageBlock`]'s size is greater than 8 bytes, we can use its space
     /// to store the next [`PageBlock`] pointer.
     ///
     /// # Safety
     ///
-    /// `start` must be properly aligned to [`PageBlock`] and must not be `0` (that is `null`).
+    /// `start` must be properly aligned to [`PageBlock`] and must not be `0` (that is null).
     /// Memory space \[`start`, `end`) must not be used as other objects.
     unsafe fn store_as_cache(&self, mut start: u64, end: u64, is_locked: bool) {
         let _lock = if !is_locked { Some(self.lock()) } else { None };
@@ -266,7 +266,7 @@ impl PageMap {
         }
     }
 
-    /// Push `block` to front of [`Self::cache`].
+    /// Pushes `block` to front of [`Self::cache`].
     fn push_cache(&self, block: &'static mut PageBlock, is_locked: bool) {
         let _lock = if !is_locked { Some(self.lock()) } else { None };
         let cache = unsafe { &mut *self.cache.get() };
@@ -274,14 +274,14 @@ impl PageMap {
         cache.push(block);
     }
 
-    /// Pop [`PageBlock`] from [`Self::cache`]'s linked list if it has.
+    /// Pops [`PageBlock`] from [`Self::cache`]'s linked list if it has.
     fn pop_cache(&self, is_locked: bool) -> Option<&'static mut PageBlock> {
         let _lock = if !is_locked { Some(self.lock()) } else { None };
         let cache = unsafe { &mut *self.cache.get() };
         cache.pop_next()
     }
 
-    /// Remove a block from [`Self::table`] and return it if succeeded.
+    /// Removes a block from [`Self::table`] and returns it if succeeded.
     ///
     /// If `start` is `None`, returns one of tables whose orders are `order`. Otherwise, returns
     /// the table starting at `start`.
@@ -444,7 +444,7 @@ impl Debug for PageBlock {
     }
 }
 
-/// Save unused static reference of `T` as cache that holds the pointer to the next [`Cache<T>`],
+/// Saves unused static reference of `T` as cache that holds the pointer to the next [`Cache<T>`],
 /// that is linked list.
 ///
 /// However, the first item, head of linked list should be put on the stack, and do not use as
@@ -459,7 +459,7 @@ impl<T> Cache<T> {
         Self(ptr::null_mut())
     }
 
-    /// Push `next` to the next of the head of the linked list, `self`. In short, `next` will be
+    /// Pushes `next` to the next of the head of the linked list, `self`. In short, `next` will be
     /// the second item of the list because the head is never assumed changeable.
     ///
     /// # Panics
@@ -487,7 +487,7 @@ impl<T> Cache<T> {
         unsafe { self.push_ptr(next as _) };
     }
 
-    /// Push `next` to the next of the head of the linked list, `self`. In short, `next` will be
+    /// Pushes `next` to the next of the head of the linked list, `self`. In short, `next` will be
     /// the second item of the list because the head is never assumed changeable.
     ///
     /// When you push a reference of `T`, use sefety version, [`Self::push()`] instead.
@@ -509,8 +509,8 @@ impl<T> Cache<T> {
         self.0 = next;
     }
 
-    /// Pop the pointer `self` holds, and link its next with `self`. After that, write `value` to it
-    /// and returns its static exclusive reference.
+    /// Pops the pointer `self` holds, and links its next with `self`. After that, writes `value`
+    /// to it and returns its static exclusive reference.
     fn pop_next_with_value(&mut self, value: T) -> Option<&'static mut T> {
         let ret = self.0;
         let new_next = unsafe { (*ret).0 };
@@ -531,8 +531,8 @@ impl<T> Cache<T> {
 }
 
 impl<T: Default> Cache<T> {
-    /// Pop the pointer `self` holds, and link its next with `self`. After that, write default value
-    /// to it and returns its static exclusive reference.
+    /// Pops the pointer `self` holds, and links its next with `self`. After that, writes default
+    /// value to it and returns its static exclusive reference.
     fn pop_next(&mut self) -> Option<&'static mut T> {
         self.pop_next_with_value(Default::default())
     }
