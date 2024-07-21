@@ -5,6 +5,8 @@ use core::{cell::UnsafeCell, fmt::Debug, marker::PhantomPinned, mem, ptr};
 use uefi::table::boot::{MemoryMap, MemoryType};
 use util::{paging::PAGE_SIZE, sync::InterruptFreeMutex};
 
+/// Represents word size of environment.
+pub const WORD_SIZE: usize = mem::size_of::<usize>();
 /// Max order of the buddy system.
 pub const MAX_ORDER: usize = 10;
 
@@ -461,13 +463,12 @@ impl<T> Cache<T> {
     /// Since `T` will used to store the next pointer of cache, this function will panic when the
     /// size of `T` is less than the word size or the align of `T` is less than the word align.
     fn push(&mut self, next: &'static mut T) {
-        let word_size = mem::size_of::<usize>();
         let word_align = mem::align_of::<usize>();
         // Check the size and the align.
         assert!(
-            mem::size_of::<T>() >= word_size,
+            mem::size_of::<T>() >= WORD_SIZE,
             "size of type must be at least word size, {} bytes",
-            word_size
+            WORD_SIZE
         );
         assert!(
             mem::align_of::<T>() >= word_align,
