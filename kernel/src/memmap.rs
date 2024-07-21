@@ -94,7 +94,7 @@ impl PageMap {
         }
         let order = page_count.ilog2() as usize;
 
-        // Search a free page whose order is equal to or above `order`.
+        // Search a free page whose order is `order` or more.
         let mut search_order = order;
         while search_order <= MAX_ORDER {
             if let Some(block) = self.remove_block(None, search_order, true) {
@@ -102,7 +102,7 @@ impl PageMap {
                 // Cache the used `PageBlock`.
                 self.push_cache(block, true);
                 if search_order > order {
-                    // When a found block's order is bigger than `order`, there is extra space. So,
+                    // When a found block's order is greater than `order`, there is extra space. So,
                     // push it back into the tables after splitting it into smaller blocks.
                     self.register_continuous_pages(
                         start + (PAGE_SIZE << order) as u64,
@@ -114,8 +114,7 @@ impl PageMap {
             }
             search_order += 1;
         }
-        // If there is no enough free page whose order is equal to or below `MAX_ORDER`, it's
-        // failure.
+        // If there is no enough free page whose order is no more than `MAX_ORDER` , it's failure.
         ptr::null_mut()
     }
 
@@ -137,7 +136,7 @@ impl PageMap {
             unsafe { self.insert_block_with_merge(block, true) };
         } else {
             // Since there is no cached block, we have to allocate a page for blocks. After we do
-            // it, there is no buddy because all buddies whose sizes are smaller than `page_count`
+            // it, there is no buddy because all buddies whose sizes are less than `page_count`
             // are contained by the block splitted to alloation.
             //
             // In short, we don't have to merge surplus pages, and all we have to do is just add
@@ -166,7 +165,7 @@ impl PageMap {
     }
 
     /// Add a given block that starts at `block_start` and whose size, in page, is `page_count`
-    /// into [PageMap::table]. If `page_count` is bigger than 2^{[`MAX_ORDER`]}, insert them after
+    /// into [PageMap::table]. If `page_count` is greater than 2^{[`MAX_ORDER`]}, insert them after
     /// splitting it into smaller blocks.
     fn register_continuous_pages(
         &self,
@@ -192,7 +191,7 @@ impl PageMap {
             let count = 1 << order;
             block.start = block_start;
             block.page_count = count;
-            // Safety: `count` is a power of two and eqaul to or smaller than 2^{`MAX_ORDER`}.
+            // Safety: `count` is a power of two and no more than 2^{`MAX_ORDER`}.
             unsafe { self.insert_block(block, true) };
 
             block_start += (count * PAGE_SIZE) as u64;
@@ -207,7 +206,7 @@ impl PageMap {
     ///
     /// # Safety
     ///
-    /// `block.page_count` must be the power of two and equal to or smaller than 2^{[`MAX_ORDER`]}.
+    /// `block.page_count` must be the power of two and no more than 2^{[`MAX_ORDER`]}.
     unsafe fn insert_block_with_merge(&self, block: &'static mut PageBlock, is_locked: bool) {
         let _lock = if !is_locked { Some(self.lock()) } else { None };
 
@@ -234,7 +233,7 @@ impl PageMap {
     ///
     /// # Safety
     ///
-    /// `block.page_count` must be the power of two and equal to or smaller than 2^{[`MAX_ORDER`]}.
+    /// `block.page_count` must be the power of two and no more than 2^{[`MAX_ORDER`]}.
     unsafe fn insert_block(&self, block: &'static mut PageBlock, is_locked: bool) {
         let _lock = if !is_locked { Some(self.lock()) } else { None };
 
@@ -248,8 +247,8 @@ impl PageMap {
     }
 
     /// Store memory space \[`start`, `end`) as an linked list of [`PageBlock`]s into
-    /// [`Self::cache`]. Since [`PageBlock`]'s size is bigger than 8 bytes, we use its space to
-    /// store the next [`PageBlock`] pointer.
+    /// [`Self::cache`]. Since [`PageBlock`]'s size is greater than 8 bytes, we can use its space
+    /// to store the next [`PageBlock`] pointer.
     ///
     /// # Safety
     ///
@@ -273,8 +272,8 @@ impl PageMap {
             //        ** `cur` is not a pointer casted to.
             //
             //     * `cur` is properly aligned.
-            //       First, the alignment of `PageBlock` is equal to or bigger than 8 because of
-            //       the definition, and a raw pointer is 8-byte aligned.
+            //       First, the alignment of `PageBlock` is at least 8 bytes because of the
+            //       definition, and a raw pointer is 8-byte aligned.
             //       Second, passed `start` value is properly aligned to `PageBlock` by caller and
             //       just adding to `start` the size of PageBlock multiple of the align of.
             //       These mean `cur` is properly aligned to a raw pointer.
