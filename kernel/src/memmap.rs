@@ -60,6 +60,13 @@ impl PageMap {
                 continue;
             }
 
+            // Don't alloate address around 0 to avoid confusing with null pointer.
+            if desc.phys_start == 0 {
+                block_start = PAGE_SIZE as u64;
+                page_count = desc.page_count as usize - 1;
+                continue;
+            }
+
             // If `desc` is the continuation of the block considering, connect them.
             if block_start + (page_count * PAGE_SIZE) as u64 == desc.phys_start {
                 page_count += desc.page_count as usize;
