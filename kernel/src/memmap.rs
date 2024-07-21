@@ -20,7 +20,7 @@ pub static PAGE_MAP: PageMap = PageMap {
     table: UnsafeCell::new([
         None, None, None, None, None, None, None, None, None, None, None,
     ]),
-    cache: UnsafeCell::new(ptr::null_mut()),
+    cache: UnsafeCell::new(Cache::new()),
     lock: AtomicBool::new(false),
 };
 
@@ -29,7 +29,7 @@ pub struct PageMap {
     /// Table of [PageBlock] whose orders are 2^0, 2^1, .., 2^{[`MAX_ORDER`]}.
     table: UnsafeCell<[Option<&'static mut PageBlock>; MAX_ORDER + 1]>,
     /// Linked list holding unused [`PageBlock`]s.
-    cache: UnsafeCell<*mut PageBlock>,
+    cache: UnsafeCell<Cache<PageBlock>>,
     /// Lock to operate [PageMap] without race conditions.
     lock: AtomicBool,
 }
@@ -258,29 +258,12 @@ impl PageMap {
         let _lock = if !is_locked { Some(self.lock()) } else { None };
         let cache = unsafe { &mut *self.cache.get() };
 
-        let mut head = *cache;
         let block_size = mem::size_of::<PageBlock>() as u64;
         while start + block_size < end {
-            let cur = start as *mut *mut PageBlock;
+            let cur = { start as *mut PageBlock };
             start += block_size;
-
-            // Safety:
-            //     * `cur` is valid because
-            //        ** `cur` is not null.
-            //        ** Each `cur` is separeted.
-            //        ** `cur` is accessed by a thread.
-            //        ** `cur` is not a pointer casted to.
-            //
-            //     * `cur` is properly aligned.
-            //       First, the alignment of `PageBlock` is at least 8 bytes because of the
-            //       definition, and a raw pointer is 8-byte aligned.
-            //       Second, passed `start` value is properly aligned to `PageBlock` by caller and
-            //       just adding to `start` the size of PageBlock multiple of the align of.
-            //       These mean `cur` is properly aligned to a raw pointer.
-            unsafe { cur.write(head) };
-            head = cur as *mut PageBlock;
+            unsafe { cache.push_ptr(cur) };
         }
-        *cache = head;
     }
 
     /// Push `block` to front of [`Self::cache`].
@@ -288,32 +271,14 @@ impl PageMap {
         let _lock = if !is_locked { Some(self.lock()) } else { None };
         let cache = unsafe { &mut *self.cache.get() };
 
-        let new_cache = (block as *mut PageBlock).cast();
-        // Safety: Since `block` is properly aligned to [`PageBlock`] that is aligned to 8 or above
-        //     bytes, so is `new_cache`, that is sufficient to hold raw pointer.
-        unsafe { *new_cache = *cache };
-        *cache = new_cache.cast();
+        cache.push(block);
     }
 
     /// Pop [`PageBlock`] from [`Self::cache`]'s linked list if it has.
     fn pop_cache(&self, is_locked: bool) -> Option<&'static mut PageBlock> {
         let _lock = if !is_locked { Some(self.lock()) } else { None };
         let cache = unsafe { &mut *self.cache.get() };
-        if cache.is_null() {
-            return None;
-        }
-
-        let head = *cache as *mut *mut PageBlock;
-        // Safety: `Self::cache` should have proper value.
-        let next = unsafe { *head };
-        *cache = next;
-        let ret: *mut PageBlock = head.cast();
-        // Safety: Caches stored in `Self::cache` are constructed by `Self::store_as_cache` that
-        //     alignes them properly.
-        unsafe {
-            ret.write(PageBlock::new(0, 0));
-            Some(&mut *ret.cast())
-        }
+        cache.pop_next()
     }
 
     /// Remove a block from [`Self::table`] and return it if succeeded.
@@ -433,6 +398,7 @@ impl<'a> Drop for Lock<'a> {
 }
 
 /// Represents a block as continuous pages.
+#[derive(Default)]
 struct PageBlock {
     /// Points to next [PageBlock].
     next: Option<&'static mut PageBlock>,
@@ -444,16 +410,6 @@ struct PageBlock {
 }
 
 impl PageBlock {
-    /// Constructs new [PageBlock] whose `next` is `None`.
-    fn new(start: u64, page_count: usize) -> Self {
-        Self {
-            next: None,
-            start,
-            page_count,
-            _pin: PhantomPinned,
-        }
-    }
-
     /// Retunrs the end address of the block.
     fn end(&self) -> u64 {
         self.start + (self.page_count * PAGE_SIZE) as u64
@@ -483,5 +439,105 @@ impl Debug for PageBlock {
         }
 
         Ok(())
+    }
+}
+
+/// Save unused static reference of `T` as cache that holds the pointer to the next [`Cache<T>`],
+/// that is linked list.
+///
+/// However, the first item, head of linked list should be put on the stack, and do not use as
+/// others objects.
+#[repr(transparent)]
+#[derive(Debug)]
+struct Cache<T>(*mut Cache<T>);
+
+impl<T> Cache<T> {
+    /// Constructs a new head of a [`Cache<T>`] linked list that is point to null.
+    const fn new() -> Self {
+        Self(ptr::null_mut())
+    }
+
+    /// Push `next` to the next of the head of the linked list, `self`. In short, `next` will be
+    /// the second item of the list because the head is never assumed changeable.
+    ///
+    /// # Panics
+    ///
+    /// Since `T` will used to store the next pointer of cache, this function will panic when the
+    /// size of `T` is less than the word size or the align of `T` is less than the word align.
+    fn push(&mut self, next: &'static mut T) {
+        let word_size = mem::size_of::<usize>();
+        let word_align = mem::align_of::<usize>();
+        // Check the size and the align.
+        assert!(
+            mem::size_of::<T>() >= word_size,
+            "size of type must be at least word size, {} bytes",
+            word_size
+        );
+        assert!(
+            mem::align_of::<T>() >= word_align,
+            "align of type must at least align of a word, {} bytes",
+            word_align
+        );
+        // Safety:
+        //   * `next` is valid because it is casted from an "static" and "exclusive" reference of
+        //     `T`.
+        //   * `T` has enough size and is properly aligned because of checking above.
+        unsafe { self.push_ptr(next as _) };
+    }
+
+    /// Push `next` to the next of the head of the linked list, `self`. In short, `next` will be
+    /// the second item of the list because the head is never assumed changeable.
+    ///
+    /// When you push a reference of `T`, use sefety version, [`Self::push()`] instead.
+    ///
+    /// # Safety
+    ///
+    /// You should guarantee conditions below:
+    ///   * `next` is [valid].
+    ///   * The size of `T` is no less than the word size.
+    ///   * `next` is properly aligned to hold a word.
+    ///
+    /// [valid]: https://doc.rust-lang.org/core/ptr/index.html#safety
+    unsafe fn push_ptr(&mut self, next: *mut T) {
+        let next: *mut Cache<T> = next.cast();
+        // Safety:
+        //     * `next` is valid because of caller.
+        //     * `cur` is properly aligned by caller.
+        unsafe { next.write(Cache(self.0)) };
+        self.0 = next;
+    }
+
+    /// Pop the pointer `self` holds, and link its next with `self`. After that, write `value` to it
+    /// and returns its static exclusive reference.
+    fn pop_next_with_value(&mut self, value: T) -> Option<&'static mut T> {
+        let ret = self.0;
+        let new_next = unsafe { (*ret).0 };
+        self.0 = new_next;
+
+        if ret.is_null() {
+            None
+        } else {
+            let ret: *mut T = ret.cast();
+            // Safety:
+            //   * `ret` is valid because it was stored in valid way and `Cache<T>` is not Send or
+            //     Sync.
+            //   * `ret` is, of cource, properly aligned.
+            unsafe { ret.write(value) };
+            Some(unsafe { &mut *ret })
+        }
+    }
+}
+
+impl<T: Default> Cache<T> {
+    /// Pop the pointer `self` holds, and link its next with `self`. After that, write default value
+    /// to it and returns its static exclusive reference.
+    fn pop_next(&mut self) -> Option<&'static mut T> {
+        self.pop_next_with_value(Default::default())
+    }
+}
+
+impl<T> Default for Cache<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
