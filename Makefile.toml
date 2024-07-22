@@ -46,6 +46,10 @@ qemu-system-x86_64 \
     -monitor stdio \
     -enable-kvm \
     -machine q35 \
+    -cpu host \
+    -smp 4 \
+    -device nec-usb-xhci,id=xhci \
+    -s \
     ${@}
 '''
 
