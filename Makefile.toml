@@ -23,16 +23,18 @@ KERNEL_TARGET = "x86_64-unknown-none"
 KERNEL_PATH = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${KERNEL_TARGET}/debug/${KERNEL_NAME}"
 
 [tasks.default]
-workspace = false
-dependencies = ["member-release"]
+alias = "make-image-release"
 
 [tasks.member-release]
+private = true
 run_task = { name = "release", fork = true, paralell = true }
 
 [tasks.member-build]
+private = true
 run_task = { name = "build", fork = true, parallel = true }
 
 [tasks.run]
+description = "Run kernel in qemu with debug profile."
 dependencies = ["make-image", "check-ovmf_vars"]
 workspace = false
 script = '''
@@ -54,30 +56,36 @@ qemu-system-x86_64 \
 '''
 
 [tasks.release-run]
+description = "Run kernel in qemu with release profile."
 extend = "run"
 dependencies = ["make-image-release", "check-ovmf_vars"]
 
 [tasks.make-image]
+description = "Make boot image file with debug profile."
 run_task = { name = ["make-image-without-umount", "umount"], fork = true, cleanup_task = "umount" }
 workspace = false
 
 [tasks.make-image-release]
+description = "Make boot image file with release profile."
 run_task = { name = ["make-image-release-without-umount", "umount"], fork = true, cleanup_task = "umount" }
 workspace = false
 
 [tasks.usb]
+description = "Make a USB media a boot device with debug profile."
 dependencies = ["usb-arg-check"]
 run_task = { name = ["make-image-without-umount", "umount"], fork = true, cleanup_task = "umount" }
 workspace = false
 env = { MAKE_USB = "" }
 
 [tasks.release-usb]
+description = "Make a USB media a boot device with release profile."
 dependencies = ["usb-arg-check"]
 run_task = { name = ["make-image-release-without-umount", "umount"], fork = true, cleanup_task = "umount" }
 workspace = false
 env = { MAKE_USB = "" }
 
 [tasks.usb-arg-check]
+private = true
 script = '''
 #!/bin/bash -e
 
@@ -88,6 +96,7 @@ fi
 '''
 
 [tasks.make-image-without-umount]
+private = true
 dependencies = ["member-build"]
 workspace = false
 script = '''
@@ -118,6 +127,7 @@ sleep 0.5
 '''
 
 [tasks.make-image-release-without-umount]
+private = true
 extend = "make-image-without-umount"
 dependencies = ["member-release"]
 [tasks.make-image-release-without-umount.env]
@@ -125,6 +135,7 @@ LOADER_PATH = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${LOADER_TARGET}/release/${L
 KERNEL_PATH = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${KERNEL_TARGET}/release/${KERNEL_NAME}"
 
 [tasks.check-ovmf_vars]
+private = true
 workspace = false
 script = '''
 #!/bin/bash -ex
@@ -135,6 +146,7 @@ fi
 '''
 
 [tasks.clean-ovmf]
+description = "Clean OVMF_VARS.fd file."
 workspace = false
 script = '''
 if [ -f "${OVMF_VARS}" ]; then
@@ -143,6 +155,7 @@ fi
 '''
 
 [tasks.umount]
+description = "Unmount boot image file from mnt directory."
 workspace = false
 script = '''
 #!/bin/bash -ex
