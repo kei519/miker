@@ -61,19 +61,47 @@ workspace = false
 run_task = { name = ["make-image-release-without-umount", "umount"], fork = true, cleanup_task = "umount" }
 workspace = false
 
+[tasks.usb]
+dependencies = ["usb-arg-check"]
+run_task = { name = ["make-image-without-umount", "umount"], fork = true, cleanup_task = "umount" }
+workspace = false
+env = { MAKE_USB = "" }
+
+[tasks.release-usb]
+dependencies = ["usb-arg-check"]
+run_task = { name = ["make-image-release-without-umount", "umount"], fork = true, cleanup_task = "umount" }
+workspace = false
+env = { MAKE_USB = "" }
+
+[tasks.usb-arg-check]
+script = '''
+#!/bin/bash -e
+
+if [ -z "$1" ]; then
+    echo "You have to specify to which drive is installed files" 1>&2
+    exit 1
+fi
+'''
+
 [tasks.make-image-without-umount]
 dependencies = ["member-build"]
 workspace = false
 script = '''
 #!/bin/bash -ex
 
-qemu-img create -f raw "${DISK_IMG}" 200M
-mkfs.fat -n "${CARGO_MAKE_PROJECT_NAME^^}" -s 2 -f 2 -R 32 -F 32 ${DISK_IMG}
+if [[ -v MAKE_USB ]]; then
+    DISK_IMG="$1:"
+    sudo /bin/mount -o uid="${UID}",gid=$(id -g $(whoami)) -t drvfs "${DISK_IMG}" "${MOUNT_POINT}"
+    rm -rf ${MOUNT_POINT}/*
+else
+    qemu-img create -f raw "${DISK_IMG}" 200M
+    mkfs.fat -n "${CARGO_MAKE_PROJECT_NAME^^}" -s 2 -f 2 -R 32 -F 32 ${DISK_IMG}
 
-if [ ! -d "${MOUNT_POINT}" ]; then
-    mkdir -p "${MOUNT_POINT}"
+    if [ ! -d "${MOUNT_POINT}" ]; then
+        mkdir -p "${MOUNT_POINT}"
+    fi
+    sudo mount -o uid="${UID}",gid=$(id -g $(whoami)) "${DISK_IMG}" "${MOUNT_POINT}"
 fi
-sudo mount -o uid="${UID}",gid=$(id -g $(whoami)) "${DISK_IMG}" "${MOUNT_POINT}"
 
 LOADER_DEPLOY_PATH="${MOUNT_POINT}/EFI/BOOT/BOOTx64.EFI"
 mkdir -p $(dirname "${LOADER_DEPLOY_PATH}")
