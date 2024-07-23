@@ -19,3 +19,6 @@ pub mod paging;
 pub mod pci;
 pub mod screen;
 pub mod sync;
+
+#[cfg(feature = "alloc")]
+pub mod error;

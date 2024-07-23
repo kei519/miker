@@ -3,13 +3,14 @@
 
 use core::fmt::Write as _;
 
-use alloc::vec;
 use alloc::{boxed::Box, vec::Vec};
+use alloc::{format, vec};
 use kernel::memmap::PAGE_MAP;
 use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
 use util::{
     asmfunc,
     buffer::StrBuf,
+    error::Result,
     graphics::GrayscalePrint as _,
     screen::{FrameBufferInfo, GrayscaleScreen},
     sync::OnceStatic,
@@ -36,7 +37,26 @@ _start:
 }
 
 #[no_mangle]
-fn main(fb_info: &FrameBufferInfo, memmap: &'static MemoryMap, _runtime: SystemTable<Runtime>) {
+fn main(fb_info: &FrameBufferInfo, memmap: &'static MemoryMap, runtime: SystemTable<Runtime>) {
+    let info = fb_info.clone();
+    match main2(fb_info, memmap, runtime) {
+        Ok(_) => unreachable!(),
+        Err(e) => {
+            let mut screen = GrayscaleScreen::new(info.clone());
+            screen.print(&format!("{}", e), (0, 0));
+            loop {
+                asmfunc::hlt();
+            }
+        }
+    }
+}
+
+// NOTE: Never return `Ok()`.
+fn main2(
+    fb_info: &FrameBufferInfo,
+    memmap: &'static MemoryMap,
+    _runtime: SystemTable<Runtime>,
+) -> Result<()> {
     let mut screen = GrayscaleScreen::new(fb_info.clone());
     FB_INFO.init(fb_info.clone());
     // Safety: There is one processor running and this is the first time to initialize.
