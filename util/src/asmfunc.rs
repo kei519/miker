@@ -29,6 +29,19 @@ pub fn set_cr3(cr3: u64) {
     unsafe { asm!("mov cr3, {}", in(reg) cr3) };
 }
 
+/// Set all data segment registers (DS, ES, FS, GS) to `segment`.
+pub fn set_ds_all(segment: u16) {
+    unsafe {
+        asm!(
+            "mov ds, {seg:x}",
+            "mov es, {seg:x}",
+            "mov fs, {seg:x}",
+            "mov gs, {seg:x}",
+            seg = in(reg) segment,
+        );
+    }
+}
+
 /// Load GDT that starts at `base` and whose size is `size`. You do not need to subtract 1 from
 /// `size` to make meet the x64 condition.
 pub fn load_gdt(base: u64, size: usize) {

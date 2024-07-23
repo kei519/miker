@@ -77,6 +77,7 @@ fn main2(
 
     gdt.register();
     asmfunc::set_cs_ss(1 << 3, 2 << 3);
+    asmfunc::set_ds_all(0);
     asmfunc::load_tr(3 << 3);
 
     let mut buf = [0; 4 * 4096];
