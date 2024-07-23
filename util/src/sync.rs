@@ -155,6 +155,11 @@ pub struct InterruptFreeMutex<T> {
     locker: AtomicBool,
 }
 
+// Safety: `InterruptFreeMutex<T>` and its shared referenece only provide an exclusive mutability to
+//     `T`. This means that the safety of `Sync`ing `InterruptFreeMutex<T>` requires the safety of
+//     `Send`ing `T`.
+unsafe impl<T: Send> Sync for InterruptFreeMutex<T> {}
+
 impl<T> InterruptFreeMutex<T> {
     /// Constructs new [`InterruptFreeMutex`] whose initial value is `value`.
     pub const fn new(value: T) -> Self {
