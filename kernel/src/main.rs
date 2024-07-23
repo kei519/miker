@@ -10,6 +10,7 @@ use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
 use util::{
     asmfunc,
     buffer::StrBuf,
+    descriptor::{self, SegmentDescriptor, SegmentType, SystemDescriptor, GDT},
     error::Result,
     graphics::GrayscalePrint as _,
     screen::{FrameBufferInfo, GrayscaleScreen},
@@ -36,6 +37,9 @@ _start:
 "#
 }
 
+/// Global TSS.
+static TSS: OnceStatic<descriptor::TSS> = OnceStatic::new();
+
 #[no_mangle]
 fn main(fb_info: &FrameBufferInfo, memmap: &'static MemoryMap, runtime: SystemTable<Runtime>) {
     let info = fb_info.clone();
@@ -61,6 +65,19 @@ fn main2(
     FB_INFO.init(fb_info.clone());
     // Safety: There is one processor running and this is the first time to initialize.
     unsafe { PAGE_MAP.init(memmap) };
+
+    // Set a new GDT for kernel.
+    let mut gdt = GDT::new(5);
+    gdt.set(1, SegmentDescriptor::new(SegmentType::code(true, false), 0));
+    gdt.set(2, SegmentDescriptor::new(SegmentType::data(true, false), 0));
+
+    // Empty TSS.
+    TSS.init(descriptor::TSS::new(&[], &[]));
+    gdt.set(3, SystemDescriptor::new_tss(TSS.as_ref(), 0));
+
+    gdt.register();
+    asmfunc::set_cs_ss(1 << 3, 2 << 3);
+    asmfunc::load_tr(3 << 3);
 
     let mut buf = [0; 4 * 4096];
     let mut buf = StrBuf::new(&mut buf);
