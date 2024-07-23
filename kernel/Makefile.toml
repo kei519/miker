@@ -30,3 +30,11 @@ if [ -n "$SYMBOLS" ]; then
     strip --strip-all "${KERNEL_PATH}"
 fi
 '''
+
+[tasks.check]
+command = "cargo"
+args = ["check"]
+
+[tasks.clippy]
+command = "cargo"
+args = ["clippy"]

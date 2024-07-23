@@ -4,14 +4,6 @@ skip_git_env_info = true
 skip_rust_env_info = true
 skip_crate_env_info = true
 
-[tasks.build]
-command = "cargo"
-args = ["build", "--target=${LOADER_TARGET}"]
-
-[tasks.release]
-command = "cargo"
-args = ["build", "--release", "--target=${LOADER_TARGET}"]
-
 [tasks.check]
 command = "cargo"
 args = ["check"]

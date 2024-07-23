@@ -33,6 +33,14 @@ run_task = { name = "release", fork = true, paralell = true }
 private = true
 run_task = { name = "build", fork = true, parallel = true }
 
+[tasks.check]
+description = "check all crates"
+run_task = "check"
+
+[tasks.clippy]
+description = "cargo clippy to check all crates"
+run_task = "clippy"
+
 [tasks.run]
 description = "Run kernel in qemu with debug profile."
 dependencies = ["make-image", "check-ovmf_vars"]
