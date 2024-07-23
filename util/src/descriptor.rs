@@ -11,10 +11,11 @@ pub use self::alloc::*;
 #[cfg(feature = "alloc")]
 mod alloc {
     use ::alloc::boxed::Box;
-    use ::alloc::vec;
+    use ::alloc::{format, vec};
 
     use super::*;
-    use crate::asmfunc;
+    use crate::error;
+    use crate::{asmfunc, error::Result};
 
     /// Represents a global descriptor table.
     #[derive(Debug, Clone)]
@@ -44,15 +45,21 @@ mod alloc {
 
         /// Set `descriptor` as the `index`-th descriptor of [GDT]. If `index` is no less than
         /// `len` specified by [`Self::new()`], this does nothing.
-        pub fn set(&mut self, index: usize, descriptor: impl Descriptor) {
+        pub fn set(&mut self, index: usize, descriptor: impl Descriptor) -> Result<()> {
             if index == 0 {
-                todo!()
+                error!("do not overwrite GDT[0]");
             }
             // Check whether the `descriptor` overflows the length of `GDT`.
             if index + descriptor.required_size() > self.descs.len() {
-                todo!()
+                error!(format!(
+                    "descriptor size {} will overflow GDT[{}..] because the length of GDT is {}",
+                    descriptor.required_size(),
+                    index,
+                    self.descs.len(),
+                ));
             }
             descriptor.write_to_table(&mut self.descs[index..]);
+            Ok(())
         }
 
         /// Call `LGDT` (Load GDT) instruction to register [`GDT`] to a processor.

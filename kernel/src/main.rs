@@ -68,12 +68,12 @@ fn main2(
 
     // Set a new GDT for kernel.
     let mut gdt = GDT::new(5);
-    gdt.set(1, SegmentDescriptor::new(SegmentType::code(true, false), 0));
-    gdt.set(2, SegmentDescriptor::new(SegmentType::data(true, false), 0));
+    gdt.set(1, SegmentDescriptor::new(SegmentType::code(true, false), 0))?;
+    gdt.set(2, SegmentDescriptor::new(SegmentType::data(true, false), 0))?;
 
     // Empty TSS.
     TSS.init(descriptor::TSS::new(&[], &[]));
-    gdt.set(3, SystemDescriptor::new_tss(TSS.as_ref(), 0));
+    gdt.set(3, SystemDescriptor::new_tss(TSS.as_ref(), 0))?;
 
     gdt.register();
     asmfunc::set_cs_ss(1 << 3, 2 << 3);
