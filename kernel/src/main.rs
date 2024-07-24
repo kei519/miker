@@ -5,8 +5,7 @@ use core::fmt::Write as _;
 
 use alloc::{boxed::Box, vec::Vec};
 use alloc::{format, vec};
-use kernel::interrupt;
-use kernel::{memmap::PAGE_MAP, screen::FB_INFO};
+use kernel::{interrupt, memmap::PAGE_MAP, screen::FB_INFO};
 use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
 use util::{
     asmfunc,
