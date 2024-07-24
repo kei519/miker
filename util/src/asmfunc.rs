@@ -58,6 +58,21 @@ pub fn load_gdt(base: u64, size: usize) {
     };
 }
 
+/// Load IDT that starts at `base` and whose size is `size`. You do not need to subtract 1 from
+/// `size` to make meet the x64 condition.
+pub fn load_idt(base: u64, size: usize) {
+    unsafe {
+        asm!(
+            "push {:r}",
+            "push {:x}",
+            "lidt [rsp]",
+            "add rsp, 10",
+            in(reg) base,
+            in(reg) size - 1,
+        )
+    };
+}
+
 /// Load `tr` to TR.
 pub fn load_tr(tr: u16) {
     unsafe {

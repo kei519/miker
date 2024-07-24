@@ -16,6 +16,7 @@ pub mod buffer;
 pub mod descriptor;
 pub mod elf;
 pub mod graphics;
+pub mod interrupt;
 pub mod paging;
 pub mod pci;
 pub mod screen;

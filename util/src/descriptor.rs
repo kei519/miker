@@ -67,6 +67,39 @@ mod alloc {
             asmfunc::load_gdt(self.descs.as_ptr() as _, self.descs.len() * 8)
         }
     }
+
+    /// Represents a Interrupt Descriptor Table.
+    pub struct IDT {
+        /// Descriptors.
+        descs: [SystemDescriptor; 256],
+    }
+
+    impl IDT {
+        /// Constructs a new empty [`IDT`].
+        pub const fn new() -> Self {
+            Self {
+                descs: [SystemDescriptor::null(); 256],
+            }
+        }
+
+        /// Set `descriptor` as the `index`-th descriptor of [`IDT`]. If `index` is greater than
+        /// `255` or the type of `descriptor` is not [`SystemDescriptorType::InterruptGate`],
+        /// do nothing and returns an error.
+        pub fn set(&mut self, index: usize, descriptor: SystemDescriptor) -> Result<()> {
+            if index >= self.descs.len() {
+                error!("index out of range");
+            } else if descriptor.ty() != SystemDescriptorType::InterruptGate {
+                error!("only interrupt gate descriptor can be set to IDT");
+            }
+            self.descs[index] = descriptor;
+            Ok(())
+        }
+
+        /// Call `LIDT` (Load IDT) instruction to register [`IDT`] to a processor.
+        pub fn register(&self) {
+            asmfunc::load_idt(self as *const _ as _, mem::size_of::<Self>());
+        }
+    }
 }
 
 /// Provides methods to register descriptors to descriptor tables.
@@ -275,6 +308,46 @@ pub struct SystemDescriptor {
 }
 
 impl SystemDescriptor {
+    /// Constructs a new null [`SystemDescriptor`], whose fields are all zero.
+    pub const fn null() -> Self {
+        Self {
+            field0: 0,
+            field1: 0,
+            field2: 0,
+            field3: 0,
+        }
+    }
+
+    /// Constructs a new interrupt descriptor. Interrupts run after setting RSP to an address
+    /// specified by [`TSS::ists`] when `stack_table` is not `0`. Otherwise, RSP does not change.
+    pub fn new_interrupt(
+        handler: *const unsafe extern "sysv64" fn(),
+        segment: u16,
+        stack_table: u8,
+        privilege_level: u8,
+    ) -> Self {
+        let addr = handler as u64;
+
+        let mut field0 = 0;
+        field0.set_bits(..16, addr as _);
+        field0.set_bits(16.., segment as _);
+
+        let mut field1 = 0;
+        field1.set_bits(..3, stack_table as _);
+        field1.set_bits(8..12, SystemDescriptorType::InterruptGate as _);
+        field1.set_bits(13..15, privilege_level as _);
+        // present
+        field1.set_bit(15, true);
+        field1.set_bits(16.., addr.get_bits(16..32) as _);
+
+        Self {
+            field0,
+            field1,
+            field2: addr.get_bits(32..) as _,
+            field3: 0,
+        }
+    }
+
     /// Constructs a new TSS descriptor from `tss`, a reference to a [TSS].
     pub fn new_tss(tss: &'static TSS, privilege_level: u8) -> Self {
         let base = tss as *const _ as u64;
@@ -300,6 +373,12 @@ impl SystemDescriptor {
             field2,
             field3: 0,
         }
+    }
+
+    /// Returs the type of [`SystemDescriptor`].
+    pub fn ty(&self) -> SystemDescriptorType {
+        let ty = self.field1.get_bits(8..12) as u8;
+        ty.into()
     }
 }
 
