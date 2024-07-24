@@ -5,7 +5,7 @@ use core::fmt::Write as _;
 
 use alloc::{boxed::Box, vec::Vec};
 use alloc::{format, vec};
-use kernel::memmap::PAGE_MAP;
+use kernel::{memmap::PAGE_MAP, screen::FB_INFO};
 use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
 use util::{
     asmfunc,
@@ -18,8 +18,6 @@ use util::{
 };
 
 extern crate alloc;
-
-static FB_INFO: OnceStatic<FrameBufferInfo> = OnceStatic::new();
 
 #[repr(align(4096))]
 #[allow(dead_code)]
@@ -42,11 +40,11 @@ static TSS: OnceStatic<descriptor::TSS> = OnceStatic::new();
 
 #[no_mangle]
 fn main(fb_info: &FrameBufferInfo, memmap: &'static MemoryMap, runtime: SystemTable<Runtime>) {
-    let info = fb_info.clone();
+    FB_INFO.init(fb_info.clone());
     match main2(fb_info, memmap, runtime) {
         Ok(_) => unreachable!(),
         Err(e) => {
-            let mut screen = GrayscaleScreen::new(info.clone());
+            let mut screen = GrayscaleScreen::new(FB_INFO.as_ref().clone());
             screen.print(&format!("{}", e), (0, 0));
             loop {
                 asmfunc::hlt();
@@ -62,7 +60,6 @@ fn main2(
     _runtime: SystemTable<Runtime>,
 ) -> Result<()> {
     let mut screen = GrayscaleScreen::new(fb_info.clone());
-    FB_INFO.init(fb_info.clone());
     // Safety: There is one processor running and this is the first time to initialize.
     unsafe { PAGE_MAP.init(memmap) };
 
