@@ -23,3 +23,5 @@ pub mod sync;
 
 #[cfg(feature = "alloc")]
 pub mod error;
+
+pub use macros::*;

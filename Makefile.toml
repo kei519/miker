@@ -7,7 +7,7 @@ skip_git_env_info = true
 skip_rust_env_info = true
 
 [env]
-CARGO_MAKE_WORKSPACE_SKIP_MEMBERS = ["util"]
+CARGO_MAKE_WORKSPACE_SKIP_MEMBERS = ["macros", "util"]
 
 DISK_IMG = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/disk.img"
 MOUNT_POINT = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/mnt"

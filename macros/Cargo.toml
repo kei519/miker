@@ -1,13 +1,16 @@
 [package]
-name = "util"
+name = "macros"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 description.workspace = true
 readme.workspace = true
 
-[features]
-alloc = []
+[lib]
+proc-macro = true
 
 [dependencies]
-macros = { path = "../macros" }
+proc-macro2 = "*"
+quote = "*"
+rand = "*"
+syn = { version = "*", features = ["full", "extra-traits"] }
