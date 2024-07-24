@@ -5,6 +5,7 @@ use core::fmt::Write as _;
 
 use alloc::{boxed::Box, vec::Vec};
 use alloc::{format, vec};
+use kernel::interrupt;
 use kernel::{memmap::PAGE_MAP, screen::FB_INFO};
 use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
 use util::{
@@ -76,6 +77,8 @@ fn main2(
     asmfunc::set_cs_ss(1 << 3, 2 << 3);
     asmfunc::set_ds_all(0);
     asmfunc::load_tr(3 << 3);
+
+    interrupt::init()?;
 
     let mut buf = [0; 4 * 4096];
     let mut buf = StrBuf::new(&mut buf);

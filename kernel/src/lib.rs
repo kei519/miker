@@ -6,5 +6,6 @@
 #![deny(improper_ctypes)]
 #![deny(improper_ctypes_definitions)]
 
+pub mod interrupt;
 pub mod memmap;
 pub mod screen;

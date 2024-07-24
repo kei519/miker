@@ -12,5 +12,6 @@ test = false
 bench = false
 
 [dependencies]
+paste = "*"
 uefi = "*"
 util = { path = "../util", features = ["alloc"] }
