@@ -100,6 +100,12 @@ mod alloc {
             asmfunc::load_idt(self as *const _ as _, mem::size_of::<Self>());
         }
     }
+
+    impl Default for IDT {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
 }
 
 /// Provides methods to register descriptors to descriptor tables.
