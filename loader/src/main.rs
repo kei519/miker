@@ -2,7 +2,7 @@
 #![no_main]
 
 use core::{
-    any,
+    any, cmp,
     fmt::{Debug, Display},
     mem::{transmute, MaybeUninit},
     ptr, slice,
@@ -162,18 +162,24 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
             // Set page tables.
             // Required page size should be calculated from a start of a page.
             let offset = phdr.vaddr & 0xfff;
-            let num_pages = (offset + phdr.memsz + PAGE_SIZE as u64 - 1) / PAGE_SIZE as u64;
-            set_page_tables(
-                &st,
-                new_pml4,
-                phdr.vaddr.into(),
-                phaddr & !0xfff,
-                num_pages as _,
-                phdr.flags.writable(),
-            )?;
+            let mut num_pages = (offset + phdr.memsz + PAGE_SIZE as u64 - 1) / PAGE_SIZE as u64;
+            let mut paddr = phaddr & !0xfff;
+            let mut vaddr = phdr.vaddr & !0xfff;
+            while num_pages > 0 {
+                let registerd_pages = set_page_tables(
+                    &st,
+                    new_pml4,
+                    vaddr.into(),
+                    paddr,
+                    num_pages as _,
+                    phdr.flags.writable(),
+                )?;
+                num_pages -= registerd_pages;
+                paddr += registerd_pages * PAGE_SIZE as u64;
+                vaddr += registerd_pages * PAGE_SIZE as u64;
+            }
         }
     }
-
     println!(
         "succeeded loading kernel to {:08x}-{:08x}",
         kernel_phys_head,
@@ -251,7 +257,9 @@ unsafe fn get_protocol<P: Protocol>(
         })
 }
 
-/// Sets `num_pages` page from `vaddr` to `pml4` with physical address `phaddr`.
+/// Trys to set `num_pages` page from `vaddr` to `pml4` with physical address `phaddr`.
+/// When `vaddr + num_pages * PAGE_SIZE` is across a PageTable boundaries, cannot set pages over
+/// the boundary. To avoid failing setting, returns the number of pages properly set.
 unsafe fn set_page_tables(
     st: &SystemTable<Boot>,
     pml4: &mut PageTable,
@@ -259,10 +267,7 @@ unsafe fn set_page_tables(
     phaddr: u64,
     num_pages: usize,
     writable: bool,
-) -> Result<(), MyError> {
-    // FIXME: This function does not take care of a situation where there are any PT boundaries between
-    //        `vaddr` and `vaddr` + `num_pages` * 4096.
-
+) -> Result<u64, MyError> {
     let mut level_table = pml4;
     for level in (2..=4).rev() {
         if level_table[vaddr.get_level_index(level)].next().is_none() {
@@ -280,12 +285,13 @@ unsafe fn set_page_tables(
             .unwrap();
     }
 
-    for i in 0..num_pages {
+    let num_pages_in_frame = cmp::min(num_pages, 512 - vaddr.pt_index());
+    for i in 0..num_pages_in_frame {
         level_table[vaddr.pt_index() + i] =
             PageEntry::new(phaddr + (i * PAGE_SIZE) as u64, writable, false);
     }
 
-    Ok(())
+    Ok(num_pages_in_frame as _)
 }
 
 /// Wraps [Error] to show where an error occurs.
