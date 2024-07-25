@@ -632,12 +632,14 @@ impl<T> Cache<T> {
     /// to it and returns its static exclusive reference.
     fn pop_next_with_value(&mut self, value: T) -> Option<&'static mut T> {
         let ret = self.0;
-        let new_next = unsafe { (*ret).0 };
-        self.0 = new_next;
 
         if ret.is_null() {
             None
         } else {
+            // Safety: `ret` is properly assinged by `push_*` when `ret` is not null.
+            let new_next = unsafe { (*ret).0 };
+            self.0 = new_next;
+
             let ret: *mut T = ret.cast();
             // Safety:
             //   * `ret` is valid because it was stored in valid way and `Cache<T>` is not Send or
