@@ -671,7 +671,10 @@ fn calc_alloc_size(layout: Layout) -> usize {
         WORD_SIZE
     } else {
         // Ceil of the log2 (size / align).
-        let pow = (layout.size() / layout.align() - 1).ilog2() + 1;
+        let pow = (layout.size() / layout.align() - 1)
+            .checked_ilog2()
+            .map(|v| v + 1)
+            .unwrap_or(0);
         layout.align() << pow
     }
 }
