@@ -6,6 +6,10 @@
 #![deny(improper_ctypes)]
 #![deny(improper_ctypes_definitions)]
 
+#[cfg(not(test))]
+extern crate alloc;
+
 pub mod interrupt;
 pub mod memmap;
+pub mod paging;
 pub mod screen;
