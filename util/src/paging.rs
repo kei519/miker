@@ -212,6 +212,17 @@ impl PageEntry {
         self
     }
 
+    /// Returns whether the [PageEntry]'s page size bit is set.
+    pub fn page_size(&self) -> bool {
+        self.0.get_bit(7)
+    }
+
+    /// If `value` is `true`, PD is interpreted as 2-MB paging.
+    pub fn set_page_size(&mut self, value: bool) -> &mut Self {
+        self.0.set_bit(7, value);
+        self
+    }
+
     /// Returns whether software has accessed the page table of page referenced by this
     /// [PageEntry].
     pub fn accessed(&self) -> bool {
