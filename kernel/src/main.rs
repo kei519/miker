@@ -39,7 +39,7 @@ _start:
 static TSS: OnceStatic<descriptor::TSS> = OnceStatic::new();
 
 #[no_mangle]
-fn main(fb_info: &FrameBufferInfo, memmap: &'static MemoryMap, runtime: SystemTable<Runtime>) {
+fn main(fb_info: &FrameBufferInfo, memmap: &'static mut MemoryMap, runtime: SystemTable<Runtime>) {
     FB_INFO.init(fb_info.clone());
     match main2(fb_info, memmap, runtime) {
         Ok(_) => unreachable!(),
@@ -56,7 +56,7 @@ fn main(fb_info: &FrameBufferInfo, memmap: &'static MemoryMap, runtime: SystemTa
 // NOTE: Never return `Ok()`.
 fn main2(
     fb_info: &FrameBufferInfo,
-    memmap: &'static MemoryMap,
+    memmap: &'static mut MemoryMap,
     _runtime: SystemTable<Runtime>,
 ) -> Result<()> {
     let mut screen = GrayscaleScreen::new(fb_info.clone());

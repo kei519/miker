@@ -221,14 +221,14 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
     drop(graphics);
 
     // Exit UEFI boot service to pass the control to kernel
-    let (runtime_services, memmap) = st.exit_boot_services(MemoryType::LOADER_DATA);
+    let (runtime_services, mut memmap) = st.exit_boot_services(MemoryType::LOADER_DATA);
 
     // Set new PML4.
     asmfunc::set_cr3(new_pml4 as *const _ as _);
 
-    type EntryFn = extern "sysv64" fn(&FrameBufferInfo, &MemoryMap, SystemTable<Runtime>) -> !;
+    type EntryFn = extern "sysv64" fn(&FrameBufferInfo, &mut MemoryMap, SystemTable<Runtime>) -> !;
     let kernel_entry: EntryFn = transmute(elf_header.entry);
-    kernel_entry(&fb_info, &memmap, runtime_services);
+    kernel_entry(&fb_info, &mut memmap, runtime_services);
 }
 
 /// Get protocol `P` from boot servieces.
