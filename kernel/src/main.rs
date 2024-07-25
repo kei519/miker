@@ -5,6 +5,7 @@ use core::fmt::Write as _;
 
 use alloc::{boxed::Box, vec::Vec};
 use alloc::{format, vec};
+use kernel::paging;
 use kernel::{interrupt, memmap::PAGE_MAP, screen::FB_INFO};
 use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
 use util::{
@@ -40,8 +41,19 @@ static TSS: OnceStatic<descriptor::TSS> = OnceStatic::new();
 
 #[no_mangle]
 fn main(fb_info: &FrameBufferInfo, memmap: &'static mut MemoryMap, runtime: SystemTable<Runtime>) {
-    FB_INFO.init(fb_info.clone());
-    match main2(fb_info, memmap, runtime) {
+    // Safety: There is one processor running and this is the first time to initialize.
+    //   There is only `fb_info` that uses first half parts of virtual address. So, all we have to
+    //   do is just mapping it properly.
+    let runtime = unsafe { PAGE_MAP.init(memmap, runtime) };
+    let fb_info = FrameBufferInfo {
+        frame_buffer: paging::pyhs_to_virt(fb_info.frame_buffer as _)
+            .unwrap()
+            .addr as _,
+        ..fb_info.clone()
+    };
+    FB_INFO.init(fb_info);
+
+    match main2(runtime) {
         Ok(_) => unreachable!(),
         Err(e) => {
             let mut screen = GrayscaleScreen::new(FB_INFO.as_ref().clone());
@@ -54,14 +66,8 @@ fn main(fb_info: &FrameBufferInfo, memmap: &'static mut MemoryMap, runtime: Syst
 }
 
 // NOTE: Never return `Ok()`.
-fn main2(
-    fb_info: &FrameBufferInfo,
-    memmap: &'static mut MemoryMap,
-    _runtime: SystemTable<Runtime>,
-) -> Result<()> {
-    let mut screen = GrayscaleScreen::new(fb_info.clone());
-    // Safety: There is one processor running and this is the first time to initialize.
-    unsafe { PAGE_MAP.init(memmap) };
+fn main2(_runtime: SystemTable<Runtime>) -> Result<()> {
+    let mut screen = GrayscaleScreen::new(FB_INFO.as_ref().clone());
 
     // Set a new GDT for kernel.
     let mut gdt = GDT::new(5);

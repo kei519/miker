@@ -1,5 +1,6 @@
 //! Provide memmap features.
 
+use alloc::vec::Vec;
 use core::{
     alloc::{GlobalAlloc, Layout},
     cell::UnsafeCell,
@@ -8,8 +9,16 @@ use core::{
     mem, ptr,
 };
 
-use uefi::table::boot::{MemoryMap, MemoryType};
-use util::{paging::PAGE_SIZE, sync::InterruptFreeMutex};
+use uefi::table::{
+    boot::{MemoryMap, MemoryType},
+    Runtime, SystemTable,
+};
+use util::{
+    paging::{PageEntry, PAGE_SIZE},
+    sync::InterruptFreeMutex,
+};
+
+use crate::paging::{self, KERNEL_PML4};
 
 /// Represents word size of environment.
 pub const WORD_SIZE: usize = mem::size_of::<usize>();
@@ -27,6 +36,7 @@ pub static PAGE_MAP: PageMap = PageMap {
     ]),
     cache: UnsafeCell::new(Cache::new()),
     lock: InterruptFreeMutex::new(()),
+    memmap: UnsafeCell::new(None),
 };
 
 /// [`Global`] allocator for this kernel.
@@ -144,6 +154,8 @@ pub struct PageMap {
     cache: UnsafeCell<Cache<PageBlock>>,
     /// Lock to operate [PageMap] without race conditions.
     lock: InterruptFreeMutex<()>,
+    /// Memory map given by UEFI.
+    memmap: UnsafeCell<Option<&'static mut MemoryMap>>,
 }
 
 // Safety: `PageMap` does not provide any method to directly change interior values. We take
@@ -152,15 +164,35 @@ pub struct PageMap {
 unsafe impl Sync for PageMap {}
 
 impl PageMap {
-    /// Initializes [PageMap] with `memmap`. Considers [MemoryType::BOOT_SERVICES_CODE],
-    /// [MemoryType::BOOT_SERVICES_DATA] and [MemoryType::CONVENTIONAL] are usable.
+    /// Initializes [PageMap] with `memmap` and sets straight page mapping for kernel. See
+    /// [`init_straight_mapping`](paging::init_straight_mapping) for more information.
+    ///
+    /// Considers [MemoryType::BOOT_SERVICES_CODE], [MemoryType::BOOT_SERVICES_DATA] and
+    /// [MemoryType::CONVENTIONAL] are usable.
     ///
     /// # Safety
     ///
     /// Since [PageMap] does not save whether it is initialized, causes UB if you call this more
     /// than once.
-    pub unsafe fn init(&self, memmap: &'static MemoryMap) {
-        let _lock = self.lock.lock();
+    ///
+    /// After this method returns, virtual address below `0xFFFF_8000_0000_0000` is never usable.
+    pub unsafe fn init(
+        &self,
+        memmap: &'static mut MemoryMap,
+        runtime: SystemTable<Runtime>,
+    ) -> SystemTable<Runtime> {
+        paging::init_straight_mapping();
+
+        for index in 0..usize::MAX {
+            let Some(desc) = memmap.get_mut(index) else {
+                break;
+            };
+            desc.virt_start = paging::pyhs_to_virt(desc.phys_start)
+                .map(|addr| addr.addr)
+                .unwrap_or(0);
+        }
+
+        let lock = self.lock.lock();
 
         // Save a start address of a page block.
         let mut block_start = 0;
@@ -178,25 +210,58 @@ impl PageMap {
             }
 
             // Don't alloate address around 0 to avoid confusing with null pointer.
-            if desc.phys_start == 0 {
-                block_start = PAGE_SIZE as u64;
-                page_count = desc.page_count as usize - 1;
+            // Virtual address is 0 means that there is no mapping from the physical address, so
+            // skip it.
+            if desc.virt_start == 0 {
                 continue;
             }
 
             // If `desc` is the continuation of the block considering, connect them.
-            if block_start + (page_count * PAGE_SIZE) as u64 == desc.phys_start {
+            if block_start + (page_count * PAGE_SIZE) as u64 == desc.virt_start {
                 page_count += desc.page_count as usize;
                 continue;
             }
 
             self.register_continuous_pages(block_start, page_count, true);
 
-            block_start = desc.phys_start;
+            block_start = desc.virt_start;
             page_count = desc.page_count as _;
         }
 
         self.register_continuous_pages(block_start, page_count, true);
+        drop(lock);
+
+        let runtime = {
+            // Now we can use `Vec` because memmap setting is done and the lock is dropped.
+            let mut memmap: Vec<_> = memmap.entries().copied().collect();
+            unsafe {
+                // Fail when `runtime` address is over 512 GB, but this situation is not supported.
+                let new_runtime_addr =
+                    paging::pyhs_to_virt(runtime.get_current_system_table_addr())
+                        .unwrap()
+                        .addr;
+                // Safety: Memory map is properly set.
+                runtime
+                    .set_virtual_address_map(&mut memmap[..], new_runtime_addr)
+                    .unwrap()
+            }
+        };
+
+        // Drop straight mapping where physical and virtual addresses are the same because now
+        // there is no same virtual address as physical one.
+        let _lock = self.lock.lock();
+        // Safety: This is safe because just mapping with new page map.
+        let memmap = unsafe {
+            &mut *(paging::pyhs_to_virt(memmap as *mut MemoryMap as _)
+                .unwrap()
+                .addr as *mut _)
+        };
+        // Safety: Lock is acquired.
+        unsafe { *self.memmap.get() = Some(memmap) };
+        // Dropping.
+        KERNEL_PML4.as_ref().lock()[0] = PageEntry::null();
+
+        runtime
     }
 
     /// Allocates `page_count` pages and returns the start address. If failed allocating, returns
