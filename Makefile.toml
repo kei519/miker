@@ -43,7 +43,7 @@ run_task = "clippy"
 
 [tasks.run]
 description = "Run kernel in qemu with debug profile."
-dependencies = ["make-image", "check-ovmf_vars"]
+dependencies = ["make-image", "clean-ovmf", "check-ovmf_vars"]
 workspace = false
 script = '''
 #!/bin/bash -ex
