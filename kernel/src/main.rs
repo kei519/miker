@@ -199,6 +199,7 @@ fn main2(_runtime: SystemTable<Runtime>) -> Result<()> {
 
 #[panic_handler]
 fn _panic_handler(info: &core::panic::PanicInfo) -> ! {
+    asmfunc::cli();
     if FB_INFO.is_initialized() {
         let mut screen = GrayscaleScreen::new(FB_INFO.as_ref().clone());
         let mut buf = [0; 4 * 1024];
