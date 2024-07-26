@@ -3,6 +3,7 @@
 use util::{
     descriptor::{self, SystemDescriptor},
     error::Result,
+    interrupt::InterruptFrame,
     sync::OnceStatic,
 };
 
@@ -141,6 +142,9 @@ pub fn init() -> Result<()> {
         20,
         SystemDescriptor::new_interrupt(int_handler_ve, 1 << 3, 0, 0),
     )?;
+    idt.set(
+        0x40,
+        SystemDescriptor::new_interrupt(int_handler_timer, 1 << 3, 0, 0),
     )?;
 
     IDT.init(idt);
@@ -167,3 +171,8 @@ fault_handler_with_error!(AC);
 fault_handler_no_error!(MC);
 fault_handler_no_error!(XM);
 fault_handler_no_error!(VE);
+
+#[util::interrupt_handler]
+fn int_handler_timer(_frame: &InterruptFrame) {
+    panic!("timer interrupt!");
+}

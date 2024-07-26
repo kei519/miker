@@ -8,6 +8,7 @@ use alloc::{format, vec};
 use kernel::paging;
 use kernel::{interrupt, memmap::PAGE_MAP, screen::FB_INFO};
 use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
+use util::apic;
 use util::{
     asmfunc,
     buffer::StrBuf,
@@ -191,6 +192,10 @@ fn main2(_runtime: SystemTable<Runtime>) -> Result<()> {
 
     let _ = writeln!(buf, "Free: {} pages", PAGE_MAP.free_pages_count());
     screen.print(buf.to_str(), (0, 0));
+
+    apic::set_lvt_timer(0x40, false, false);
+    apic::set_divide_config(1);
+    apic::set_init_count(u32::MAX / 8);
 
     loop {
         asmfunc::hlt();
