@@ -71,75 +71,76 @@ pub fn init() -> Result<()> {
     let mut idt = descriptor::IDT::new();
     idt.set(
         0,
-        SystemDescriptor::new_interrupt(int_handler_de as _, 1 << 3, 0, 0),
+        SystemDescriptor::new_interrupt(int_handler_de, 1 << 3, 0, 0),
     )?;
     idt.set(
         1,
-        SystemDescriptor::new_interrupt(int_handler_db as _, 1 << 3, 0, 0),
+        SystemDescriptor::new_interrupt(int_handler_db, 1 << 3, 0, 0),
     )?;
     idt.set(
         3,
-        SystemDescriptor::new_interrupt(int_handler_bp as _, 1 << 3, 0, 0),
+        SystemDescriptor::new_interrupt(int_handler_bp, 1 << 3, 0, 0),
     )?;
     idt.set(
         4,
-        SystemDescriptor::new_interrupt(int_handler_of as _, 1 << 3, 0, 0),
+        SystemDescriptor::new_interrupt(int_handler_of, 1 << 3, 0, 0),
     )?;
     idt.set(
         5,
-        SystemDescriptor::new_interrupt(int_handler_br as _, 1 << 3, 0, 0),
+        SystemDescriptor::new_interrupt(int_handler_br, 1 << 3, 0, 0),
     )?;
     idt.set(
         6,
-        SystemDescriptor::new_interrupt(int_handler_ud as _, 1 << 3, 0, 0),
+        SystemDescriptor::new_interrupt(int_handler_ud, 1 << 3, 0, 0),
     )?;
     idt.set(
         7,
-        SystemDescriptor::new_interrupt(int_handler_nm as _, 1 << 3, 0, 0),
+        SystemDescriptor::new_interrupt(int_handler_nm, 1 << 3, 0, 0),
     )?;
     idt.set(
         8,
-        SystemDescriptor::new_interrupt(int_handler_df as _, 1 << 3, 0, 0),
+        SystemDescriptor::new_interrupt(int_handler_df, 1 << 3, 0, 0),
     )?;
     idt.set(
         10,
-        SystemDescriptor::new_interrupt(int_handler_ts as _, 1 << 3, 0, 0),
+        SystemDescriptor::new_interrupt(int_handler_ts, 1 << 3, 0, 0),
     )?;
     idt.set(
         11,
-        SystemDescriptor::new_interrupt(int_handler_np as _, 1 << 3, 0, 0),
+        SystemDescriptor::new_interrupt(int_handler_np, 1 << 3, 0, 0),
     )?;
     idt.set(
         12,
-        SystemDescriptor::new_interrupt(int_handler_ss as _, 1 << 3, 0, 0),
+        SystemDescriptor::new_interrupt(int_handler_ss, 1 << 3, 0, 0),
     )?;
     idt.set(
         13,
-        SystemDescriptor::new_interrupt(int_handler_gp as _, 1 << 3, 0, 0),
+        SystemDescriptor::new_interrupt(int_handler_gp, 1 << 3, 0, 0),
     )?;
     idt.set(
         14,
-        SystemDescriptor::new_interrupt(int_handler_pf as _, 1 << 3, 0, 0),
+        SystemDescriptor::new_interrupt(int_handler_pf, 1 << 3, 0, 0),
     )?;
     idt.set(
         16,
-        SystemDescriptor::new_interrupt(int_handler_mf as _, 1 << 3, 0, 0),
+        SystemDescriptor::new_interrupt(int_handler_mf, 1 << 3, 0, 0),
     )?;
     idt.set(
         17,
-        SystemDescriptor::new_interrupt(int_handler_ac as _, 1 << 3, 0, 0),
+        SystemDescriptor::new_interrupt(int_handler_ac, 1 << 3, 0, 0),
     )?;
     idt.set(
         18,
-        SystemDescriptor::new_interrupt(int_handler_mc as _, 1 << 3, 0, 0),
+        SystemDescriptor::new_interrupt(int_handler_mc, 1 << 3, 0, 0),
     )?;
     idt.set(
         19,
-        SystemDescriptor::new_interrupt(int_handler_xm as _, 1 << 3, 0, 0),
+        SystemDescriptor::new_interrupt(int_handler_xm, 1 << 3, 0, 0),
     )?;
     idt.set(
         20,
-        SystemDescriptor::new_interrupt(int_handler_ve as _, 1 << 3, 0, 0),
+        SystemDescriptor::new_interrupt(int_handler_ve, 1 << 3, 0, 0),
+    )?;
     )?;
 
     IDT.init(idt);

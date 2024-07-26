@@ -327,12 +327,12 @@ impl SystemDescriptor {
     /// Constructs a new interrupt descriptor. Interrupts run after setting RSP to an address
     /// specified by [`TSS::ists`] when `stack_table` is not `0`. Otherwise, RSP does not change.
     pub fn new_interrupt(
-        handler: *const unsafe extern "sysv64" fn(),
+        handler: unsafe extern "sysv64" fn(),
         segment: u16,
         stack_table: u8,
         privilege_level: u8,
     ) -> Self {
-        let addr = handler as u64;
+        let addr = handler as *const unsafe extern "sysv64" fn() as u64;
 
         let mut field0 = 0;
         field0.set_bits(..16, addr as _);
