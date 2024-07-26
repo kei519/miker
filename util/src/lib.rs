@@ -12,6 +12,7 @@ extern crate alloc;
 mod font_data;
 
 pub mod acpi;
+pub mod apic;
 pub mod asmfunc;
 pub mod bitfield;
 pub mod buffer;
