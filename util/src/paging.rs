@@ -2,13 +2,108 @@
 
 use core::{
     ops::{Index, IndexMut},
+    ptr::NonNull,
     slice,
 };
 
-use crate::bitfield::BitField as _;
+use crate::{bitfield::BitField as _, sync::OnceStatic};
 
 /// Represents the size of a page.
 pub const PAGE_SIZE: usize = 4096;
+
+/// [`AddressConverter`] used in [`util`](crate).
+pub static ADDRESS_CONVERTER: OnceStatic<AddressConverter> = OnceStatic::new();
+
+/// Converts physical address to virtual address, and does some operations to memory.
+#[derive(Debug)]
+pub struct AddressConverter {
+    converter: fn(u64) -> u64,
+}
+
+impl AddressConverter {
+    /// `converter` has to preserver lower 12 bits and map non-accessable address to 0 i.e. null.
+    pub fn new(converter: fn(u64) -> u64) -> Self {
+        Self { converter }
+    }
+
+    /// Read memory at physical address `addr`, if the converted virtual address is not null.
+    ///
+    /// # Safety
+    ///
+    /// See [`read()`](core::ptr::read).
+    pub unsafe fn read<T>(&self, addr: u64) -> Option<T> {
+        // Safety: caller gurantees.
+        self.get_ptr(addr).map(|ptr| unsafe { ptr.read() })
+    }
+
+    /// Read memory at physical address `addr`, which may be non-aligned, if the converted virtual
+    /// address is not null.
+    ///
+    /// # Safety
+    ///
+    /// See [`read_unaligned()`](core::ptr::read_unaligned).
+    pub unsafe fn read_unaligned<T>(&self, addr: u64) -> Option<T> {
+        self.get_ptr(addr)
+            // Safety: caller gurantees.
+            .map(|ptr| unsafe { ptr.read_unaligned() })
+    }
+
+    /// Performs a volatile read from memory at physical adddress `addr`, if the converted virtual
+    /// address is not null.
+    ///
+    /// # Safety
+    ///
+    /// See [`read_volatile()`](core::ptr::read_volatile).
+    pub unsafe fn read_volatile<T>(&self, addr: u64) -> Option<T> {
+        // Safety: caller gurantees.
+        self.get_ptr(addr).map(|ptr| unsafe { ptr.read_volatile() })
+    }
+
+    /// Write `value` to memory at physical address `addr`, if the converted virtual address is not
+    /// null.
+    ///
+    /// # Safety
+    ///
+    /// See [`write()`](core::ptr::write).
+    pub unsafe fn write<T>(&self, addr: u64, value: T) -> bool {
+        self.get_ptr(addr)
+            // Safety: caller gurantees.
+            .map(|ptr| unsafe { ptr.write(value) })
+            .is_some()
+    }
+
+    /// Write `value` to memory at physical address `addr`, which may be non-aligned, if the
+    /// converted virtual address is not null.
+    ///
+    /// # Safety
+    ///
+    /// See [`write_unaligned()`](core::ptr::write_unaligned).
+    pub unsafe fn write_unaligned<T>(&self, addr: u64, value: T) -> bool {
+        self.get_ptr(addr)
+            // Safety: caller gurantees.
+            .map(|ptr| unsafe { ptr.write_unaligned(value) })
+            .is_some()
+    }
+
+    /// Performs a volatile read from memory at physical adddress `addr`, if the converted virtual
+    /// address is not null.
+    ///
+    /// # Safety
+    ///
+    /// See [`read_volatile()`](core::ptr::read_volatile).
+    pub unsafe fn write_volatile<T>(&self, addr: u64, value: T) -> bool {
+        self.get_ptr(addr)
+            // Safety: caller gurantees.
+            .map(|ptr| unsafe { ptr.write_volatile(value) })
+            .is_some()
+    }
+
+    /// Returns the pointer to `T` whose physical address is `addr` if there is appropriate
+    /// convertion.
+    pub fn get_ptr<T>(&self, addr: u64) -> Option<NonNull<T>> {
+        NonNull::new((self.converter)(addr) as _)
+    }
+}
 
 /// Represents PML4, PDP, PD, PT and a page pointed by a PT.
 #[repr(C, align(4096))]

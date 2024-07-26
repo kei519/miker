@@ -2,7 +2,7 @@
 
 use core::mem;
 
-use util::paging::{PageTable, VirtualAddress};
+use util::paging::{AddressConverter, PageTable, VirtualAddress, ADDRESS_CONVERTER};
 use util::{
     asmfunc,
     paging::PageEntry,
@@ -83,6 +83,8 @@ pub fn init_straight_mapping() {
             false,
         )
     };
+
+    ADDRESS_CONVERTER.init(AddressConverter::new(phys_to_virt2));
 }
 
 /// Converts physical address `addr` to virtual address if there is such mapping. Otherwise
@@ -111,5 +113,11 @@ pub fn virt_to_phys(addr: impl Into<VirtualAddress>) -> Option<u64> {
     } else {
         None
     }
+}
+
+/// Converts physical address `addr` to virtual address. Returns `0` if and only if there is no
+/// such mapping.
+fn phys_to_virt2(addr: u64) -> u64 {
+    pyhs_to_virt(addr).map(|addr| addr.addr).unwrap_or(0)
 }
 
