@@ -1,12 +1,18 @@
 #![no_std]
 #![no_main]
+#![deny(unsafe_op_in_unsafe_fn)]
+#![deny(improper_ctypes)]
+#![deny(improper_ctypes_definitions)]
+
+mod interrupt;
+mod memmap;
+mod paging;
+mod screen;
 
 use core::fmt::Write as _;
 
 use alloc::{boxed::Box, vec::Vec};
 use alloc::{format, vec};
-use kernel::paging;
-use kernel::{interrupt, memmap::PAGE_MAP, screen::FB_INFO};
 use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
 use util::apic;
 use util::{
@@ -18,6 +24,8 @@ use util::{
     screen::{FrameBufferInfo, GrayscaleScreen},
     sync::OnceStatic,
 };
+
+use {memmap::PAGE_MAP, screen::FB_INFO};
 
 extern crate alloc;
 
