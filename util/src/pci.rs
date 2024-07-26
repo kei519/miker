@@ -2,7 +2,7 @@
 
 use core::{cell::UnsafeCell, fmt::Debug};
 
-use crate::bitfield::BitField;
+use crate::{bitfield::BitField, paging::ADDRESS_CONVERTER};
 
 /// Represetns a PCI configuration space.
 #[repr(C)]
@@ -88,6 +88,25 @@ pub struct ConfigSpace {
 }
 
 impl ConfigSpace {
+    /// Returns exclusive reference to memory at physical address `ptr`.
+    ///
+    /// # Panic
+    ///
+    /// If there is no map from physical address `ptr` to virtual one, it causes panic.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be non-null and properly aligned.
+    pub unsafe fn from_ptr(ptr: *mut u8) -> &'static mut Self {
+        // Safety: caller guarantees.
+        unsafe {
+            &mut *ADDRESS_CONVERTER
+                .as_ref()
+                .get_ptr(ptr as u64)
+                .unwrap()
+                .as_ptr()
+        }
+    }
     /// Returns [Self::cap_ptr] if it is valid.
     pub fn cap_ptr(&self) -> Option<u8> {
         if self.status.get_bit(4) {
