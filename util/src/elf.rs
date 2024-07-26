@@ -75,7 +75,7 @@ pub struct Elf64Phdr {
     /// Segment virtual address.
     pub vaddr: u64,
     /// Segment physical address.
-    paddr: u64,
+    pub paddr: u64,
     /// Segment size in file.
     pub filesz: u64,
     /// Segment size in memory.
