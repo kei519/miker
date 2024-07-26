@@ -83,6 +83,25 @@ pub fn load_tr(tr: u16) {
     };
 }
 
+/// Get CPUID value with initial EAX `input`.
+pub fn cpuid(input: u32) -> (u32, u32, u32, u32) {
+    let eax;
+    let ebx;
+    let ecx;
+    let edx;
+    unsafe {
+        asm!(
+            "cpuid",
+            "mov {b:e}, ebx",
+            inout("eax") input => eax,
+            b = out(reg) ebx,
+            out("ecx") ecx,
+            out("edx") edx,
+        )
+    };
+    (eax, ebx, ecx, edx)
+}
+
 /// Set CS and SS to `cs` and `ss`, respectively.
 pub fn set_cs_ss(cs: u16, ss: u16) {
     unsafe { _set_cs_ss(cs, ss) };
