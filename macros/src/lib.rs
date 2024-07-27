@@ -31,7 +31,7 @@ macro_rules! error {
 ///
 /// - Default usage.
 ///
-/// ```
+/// ```no_compile
 /// #[interrupt_handler]
 /// fn int_handler(frame: &InterruptFrame) {
 ///     // operations
@@ -40,7 +40,7 @@ macro_rules! error {
 ///
 /// - With an error code.
 ///
-/// ```
+/// ```no_compile
 /// #[interrupt_handler]
 /// fn int_handler(frame: &InterruptFrame, error_code: u64) {
 ///     // ...

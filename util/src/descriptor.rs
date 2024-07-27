@@ -182,7 +182,7 @@ impl SegmentType {
 ///
 /// In 16-bit or 32-bit mode, an address \[S:REG\] is interpreted as
 ///
-/// ```
+/// ```no_compile
 /// let limit = if G { S.limit << 12 } else { S.limit };
 /// let addr = S.base + REG;
 /// if addr <= limit { addr } else { #GP }
