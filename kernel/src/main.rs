@@ -8,6 +8,7 @@ mod interrupt;
 mod memmap;
 mod paging;
 mod screen;
+mod task;
 
 use core::fmt::Write as _;
 
