@@ -26,6 +26,9 @@ pub mod screen;
 pub mod sync;
 
 #[cfg(feature = "alloc")]
+pub mod collections;
+
+#[cfg(feature = "alloc")]
 pub mod error;
 
 #[cfg(feature = "alloc")]
