@@ -41,7 +41,7 @@ core::arch::global_asm! { r#"
 .global _start
 _start:
     lea rsp, [KERNEL_STACK + rip]
-    add rsp, 1 * 1024 * 1024 - 8
+    add rsp, 1 * 1024 * 1024
     call main
 "#
 }
