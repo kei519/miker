@@ -154,6 +154,8 @@ pub struct InterruptFreeMutex<T> {
     data: UnsafeCell<T>,
     /// Represents whether someone has the lock.
     locker: AtomicBool,
+    /// Saves whether IF (interrupt flag) is set before disabling interrupts.
+    prev_if: AtomicBool,
 }
 
 // Safety: `InterruptFreeMutex<T>` and its shared referenece only provide an exclusive mutability to
@@ -167,15 +169,21 @@ impl<T> InterruptFreeMutex<T> {
         Self {
             data: UnsafeCell::new(value),
             locker: AtomicBool::new(false),
+            prev_if: AtomicBool::new(false),
         }
     }
 
     /// Trys to take a lock, and if succeeds returns the guard. Otherwise, returns `None`.
     pub fn try_lock(&self) -> Option<InterruptFreeMutexGuard<'_, T>> {
+        self.prev_if.store(asmfunc::get_if(), Relaxed);
+        // NOTE: We disable interrupts even if interrupts are already disabled because conditional
+        //       branching is expensive.
         asmfunc::cli();
 
         if self.locker.swap(true, Relaxed) {
-            asmfunc::sti();
+            if self.prev_if.load(Relaxed) {
+                asmfunc::sti();
+            }
             None
         } else {
             // Since we don't need `Acquire` when failed, put fence here.
@@ -183,6 +191,7 @@ impl<T> InterruptFreeMutex<T> {
             Some(InterruptFreeMutexGuard {
                 data: unsafe { &mut *self.data.get() },
                 locker: &self.locker,
+                prev_if: &self.prev_if,
             })
         }
     }
@@ -207,6 +216,8 @@ pub struct InterruptFreeMutexGuard<'this, T> {
     data: &'this mut T,
     /// Reference to value representing whether it is locked. Used to release the lock.
     locker: &'this AtomicBool,
+    /// Reference to value representing whether IF is set.
+    prev_if: &'this AtomicBool,
 }
 
 impl<'this, T> Deref for InterruptFreeMutexGuard<'this, T> {
@@ -226,6 +237,8 @@ impl<'this, T> DerefMut for InterruptFreeMutexGuard<'this, T> {
 impl<'this, T> Drop for InterruptFreeMutexGuard<'this, T> {
     fn drop(&mut self) {
         self.locker.store(false, Release);
-        asmfunc::sti();
+        if self.prev_if.load(Relaxed) {
+            asmfunc::sti();
+        }
     }
 }
