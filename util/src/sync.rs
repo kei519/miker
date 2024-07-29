@@ -148,6 +148,7 @@ impl<T> AsRef<T> for OnceStatic<T> {
 }
 
 /// Provides a mutex lock with disabling interrupts until release the lock.
+#[derive(Debug)]
 pub struct InterruptFreeMutex<T> {
     /// Data guarded by the lock.
     data: UnsafeCell<T>,
