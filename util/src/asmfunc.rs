@@ -2,6 +2,8 @@
 
 use core::arch::{asm, global_asm};
 
+use crate::bitfield::BitField as _;
+
 /// Allows interrupts.
 pub fn sti() {
     unsafe { asm!("sti") };
@@ -100,6 +102,20 @@ pub fn cpuid(input: u32) -> (u32, u32, u32, u32) {
         )
     };
     (eax, ebx, ecx, edx)
+}
+
+/// Returs whether IF (interrupt flag) is set.
+pub fn get_if() -> bool {
+    let flags: u64;
+    unsafe {
+        asm!(
+            "pushfq",
+            "pop {:r}",
+            out(reg) flags,
+        )
+    }
+    // NOTE: Should "Flag" type be defined?
+    flags.get_bit(9)
 }
 
 /// Set CS and SS to `cs` and `ss`, respectively.
