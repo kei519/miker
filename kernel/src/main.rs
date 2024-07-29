@@ -14,6 +14,7 @@ use core::fmt::Write as _;
 
 use alloc::{boxed::Box, vec::Vec};
 use alloc::{format, vec};
+use task::TASK_MANAGER;
 use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
 use util::apic;
 use util::{
@@ -79,13 +80,17 @@ fn main(fb_info: &FrameBufferInfo, memmap: &'static mut MemoryMap, runtime: Syst
 fn main2(_runtime: SystemTable<Runtime>) -> Result<()> {
     let mut screen = GrayscaleScreen::new(FB_INFO.as_ref().clone());
 
+    let stack_for_timer_interrupt = PAGE_MAP.allocate(2);
+    if stack_for_timer_interrupt.is_null() {
+        panic!("Failed to allocate 2 pages");
+    }
+
     // Set a new GDT for kernel.
     let mut gdt = GDT::new(5);
     gdt.set(1, SegmentDescriptor::new(SegmentType::code(true, false), 0))?;
     gdt.set(2, SegmentDescriptor::new(SegmentType::data(true, false), 0))?;
 
-    // Empty TSS.
-    TSS.init(descriptor::TSS::new(&[], &[]));
+    TSS.init(descriptor::TSS::new(&[], &[stack_for_timer_interrupt as _]));
     gdt.set(3, SystemDescriptor::new_tss(TSS.as_ref(), 0))?;
 
     gdt.register();
@@ -202,12 +207,28 @@ fn main2(_runtime: SystemTable<Runtime>) -> Result<()> {
     let _ = writeln!(buf, "Free: {} pages", PAGE_MAP.free_pages_count());
     screen.print(buf.to_str(), (0, 0));
 
-    apic::set_lvt_timer(0x40, false, false);
+    TASK_MANAGER.init();
+
+    apic::set_lvt_timer(0x40, false, true);
     apic::set_divide_config(1);
-    apic::set_init_count(u32::MAX / 8);
+    apic::set_init_count(100000);
+    asmfunc::sti();
+
+    drop(screen);
+    TASK_MANAGER.register_new_task(count, 1, 1 << 3, 2 << 3);
 
     loop {
         asmfunc::hlt();
+    }
+}
+
+fn count() {
+    let mut i = 0;
+    let mut screen = GrayscaleScreen::new(FB_INFO.as_ref().clone());
+    loop {
+        screen.print(&format!("count: {:010}", i), (0, 0));
+        i += 1;
+        unsafe { core::arch::asm!("hlt") };
     }
 }
 

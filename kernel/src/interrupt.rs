@@ -1,11 +1,15 @@
 //! Configure interrupts settings.
 
+use core::arch::global_asm;
+
 use util::{
+    apic,
     descriptor::{self, SystemDescriptor},
     error::Result,
-    interrupt::InterruptFrame,
     sync::OnceStatic,
 };
+
+use crate::task::{Context, TASK_MANAGER};
 
 /// Declares default interrupt handler function named `int_handler_<arg>` without an error code.
 /// Declared function prints capital `arg`, RIP, CS, RFLAGS, RSP and SS on the screen if
@@ -144,7 +148,7 @@ pub fn init() -> Result<()> {
     )?;
     idt.set(
         0x40,
-        SystemDescriptor::new_interrupt(int_handler_timer, 1 << 3, 0, 0),
+        SystemDescriptor::new_interrupt(int_handler_timer, 1 << 3, 1, 0),
     )?;
 
     IDT.init(idt);
@@ -172,7 +176,92 @@ fault_handler_no_error!(MC);
 fault_handler_no_error!(XM);
 fault_handler_no_error!(VE);
 
-#[util::interrupt_handler]
-fn int_handler_timer(_frame: &InterruptFrame) {
-    panic!("timer interrupt!");
+#[no_mangle]
+fn _int_handler_timer(prev_ctx: &Context) {
+    apic::notify_end_of_interrupt();
+    // Safety: This is in interrupt handler and IF is not set.
+    unsafe { TASK_MANAGER.switch(prev_ctx) };
 }
+
+extern "sysv64" {
+    /// Saves context before interrupt, and call [`_int_handler_tiemr`] with an argument, the
+    /// reference to the context.
+    fn int_handler_timer();
+}
+
+global_asm! { r#"
+.global int_handler_timer
+int_handler_timer:
+    cli
+    push rbp
+    mov rbp, rsp
+
+    # Direction flag should be unset before calling interrupt handler.
+    cld
+
+    # Construct `Context` on the stack
+    sub rsp, 512
+    fxsave [rsp]
+    push r15
+    push r14
+    push r13
+    push r12
+    push r11
+    push r10
+    push r9
+    push r8
+    push qword ptr [rbp]        # RBP
+    push qword ptr [rbp + 0x20] # RSP
+    push rsi
+    push rdi
+    push rdx
+    push rcx
+    push rbx
+    push rax
+
+    mov ax, gs
+    mov bx, fs
+
+    push rax                    # GS
+    push rbx                    # FS
+    push qword ptr [rbp + 0x28] # SS
+    push qword ptr [rbp + 0x10] # CS
+    push rbp                    # reserved1
+    push qword ptr [rbp + 0x18] # RFLAGS
+    push qword ptr [rbp + 0x08] # RIP
+
+    mov rax, cr3
+    push rax                    # CR3
+
+    # Pass the reference to previous context as the first argument.
+    lea rdi, [rsp]
+    call _int_handler_timer
+    # Usually does not return here.
+
+    # Discard up to GS
+    add rsp, 8 * 8
+
+    pop rax
+    pop rbx
+    pop rcx
+    pop rdx
+    pop rdi
+    pop rsi
+
+    # Discard RSP and RBP
+    add rsp, 8 * 2
+
+    pop r8
+    pop r9
+    pop r10
+    pop r11
+    pop r12
+    pop r13
+    pop r14
+    pop r15
+    fxrstor [rsp]
+
+    mov rsp, rbp
+    pop rbp
+    iretq
+"# }
