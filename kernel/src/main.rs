@@ -17,6 +17,7 @@ use alloc::{format, vec};
 use task::TASK_MANAGER;
 use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
 use util::apic;
+use util::paging::PAGE_SIZE;
 use util::{
     asmfunc,
     buffer::StrBuf,
@@ -90,7 +91,10 @@ fn main2(_runtime: SystemTable<Runtime>) -> Result<()> {
     gdt.set(1, SegmentDescriptor::new(SegmentType::code(true, false), 0))?;
     gdt.set(2, SegmentDescriptor::new(SegmentType::data(true, false), 0))?;
 
-    TSS.init(descriptor::TSS::new(&[], &[stack_for_timer_interrupt as _]));
+    TSS.init(descriptor::TSS::new(
+        &[],
+        &[unsafe { stack_for_timer_interrupt.byte_add(2 * PAGE_SIZE) } as _],
+    ));
     gdt.set(3, SystemDescriptor::new_tss(TSS.as_ref(), 0))?;
 
     gdt.register();
