@@ -99,7 +99,7 @@ impl AddressConverter {
     }
 
     /// Returns the pointer to `T` whose physical address is `addr` if there is appropriate
-    /// convertion.
+    /// conversion.
     pub fn get_ptr<T>(&self, addr: u64) -> Option<NonNull<T>> {
         NonNull::new((self.converter)(addr) as _)
     }
