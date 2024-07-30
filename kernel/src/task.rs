@@ -163,7 +163,7 @@ impl Task {
         let mut ctx = Context::new();
         let stack = Stack::new(DEFAULT_STACK_SIZE_IN_PAGES);
         ctx.cr3 = asmfunc::get_cr3();
-        ctx.rip = f as _;
+        ctx.rip = f as usize as _;
         ctx.rsp = stack.as_end_ptr() as u64 - 8;
         ctx.cs = cs as _;
         ctx.ss = ss as _;
