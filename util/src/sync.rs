@@ -99,6 +99,16 @@ impl<T> OnceStatic<T> {
     }
 }
 
+impl<T> Drop for OnceStatic<T> {
+    fn drop(&mut self) {
+        if self.is_initialized() {
+            // Safety: `self` is mutable borrowed, that is there is no other references and `data` is
+            //         initialized.
+            unsafe { (*self.data.get()).assume_init_drop() };
+        }
+    }
+}
+
 impl<T: Copy> OnceStatic<T> {
     /// Returns the copied inner value.
     ///
