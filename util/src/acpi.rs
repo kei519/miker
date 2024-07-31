@@ -6,6 +6,8 @@
 
 use core::{fmt::Debug, mem, ptr, slice};
 
+use crate::paging::ADDRESS_CONVERTER;
+
 use self::apic::Madt;
 
 pub mod apic;
@@ -105,12 +107,22 @@ impl Rsdp {
 
     /// Returns the reference to [Rsdt] indicated by `Rsdp.rsdt_address` if it is valid Rsdt.
     pub fn rsdt(&'static self) -> Result<&'static Rsdt> {
-        Rsdt::from_ptr(self.rsdt_address as _)
+        Rsdt::from_ptr(
+            ADDRESS_CONVERTER
+                .as_ref()
+                .get_addr(self.rsdt_address as _)
+                .unwrap() as _,
+        )
     }
 
     /// Returns the reference to [Xsdt] indicated by `Rsdp.xsdt_address` if it is valid Xsdt.
     pub fn xsdt(&'static self) -> Result<&'static Xsdt> {
-        Xsdt::from_ptr(self.xsdt_address as _)
+        Xsdt::from_ptr(
+            ADDRESS_CONVERTER
+                .as_ref()
+                .get_addr(self.xsdt_address)
+                .unwrap() as _,
+        )
     }
 }
 
@@ -147,6 +159,12 @@ impl TableHeader {
     /// in `Err`.
     fn from_ptr(ptr: *const Self) -> Result<&'static Self> {
         let ret = unsafe { &*ptr };
+        // let ret: &Self = unsafe {
+        //     &*ADDRESS_CONVERTER
+        //         .as_ref()
+        //         .get_ptr(ptr as _)
+        //         .map_or_else(|| ptr, |ptr| ptr.as_ptr())
+        // };
 
         // Checks if the fields are valid.
         if sum_bytes(ret, ret.len as _) != 0 {
@@ -229,7 +247,10 @@ impl Xsdt {
     pub fn entry(&self, index: usize) -> Result<DescriptionTable> {
         if index < self.entries_count() {
             Ok(DescriptionTable::from_ptr(unsafe {
-                ptr::addr_of!(self.entry[index]).read_unaligned()
+                ADDRESS_CONVERTER
+                    .as_ref()
+                    .get_addr(ptr::addr_of!(self.entry[index]).read_unaligned())
+                    .unwrap()
             } as _)?)
         } else {
             Err(Error::IndexOutOfRange)
@@ -293,12 +314,17 @@ impl<Entry: Copy + Into<u64>> Iterator for SystemDescriptionIter<Entry> {
             if self.count <= self.index {
                 return None;
             } else if let Ok(ret) = DescriptionTable::from_ptr(
-                unsafe {
-                    self.start
-                        .byte_add(self.index * mem::size_of::<Entry>())
-                        .read_unaligned()
-                }
-                .into() as _,
+                ADDRESS_CONVERTER
+                    .as_ref()
+                    .get_addr(
+                        unsafe {
+                            self.start
+                                .byte_add(self.index * mem::size_of::<Entry>())
+                                .read_unaligned()
+                        }
+                        .into() as _,
+                    )
+                    .unwrap() as _,
             ) {
                 self.index += 1;
                 return Some(ret);
@@ -325,9 +351,12 @@ impl Rsdt {
     /// Returns `index`-th entry if it exists.
     pub fn entry(&self, index: usize) -> Result<DescriptionTable> {
         if index < self.entries_count() {
-            Ok(DescriptionTable::from_ptr(unsafe {
-                ptr::addr_of!(self.entry[index]).read_unaligned()
-            } as _)?)
+            Ok(DescriptionTable::from_ptr(
+                ADDRESS_CONVERTER
+                    .as_ref()
+                    .get_addr(unsafe { ptr::addr_of!(self.entry[index]).read_unaligned() } as _)
+                    .unwrap() as _,
+            )?)
         } else {
             Err(Error::IndexOutOfRange)
         }
