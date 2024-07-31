@@ -11,12 +11,16 @@ mod screen;
 mod task;
 
 use core::fmt::Write as _;
+use core::ptr;
 
 use alloc::format;
 use task::TASK_MANAGER;
+use uefi::table::cfg::ACPI2_GUID;
 use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
-use util::apic;
+use util::acpi::{DescriptionTable, Rsdp};
+use util::bitfield::BitField;
 use util::paging::PAGE_SIZE;
+use util::{apic, error};
 use util::{
     asmfunc,
     buffer::StrBuf,
@@ -77,7 +81,7 @@ fn main(fb_info: &FrameBufferInfo, memmap: &'static mut MemoryMap, runtime: Syst
 }
 
 // NOTE: Never return `Ok()`.
-fn main2(_runtime: SystemTable<Runtime>) -> Result<()> {
+fn main2(runtime: SystemTable<Runtime>) -> Result<()> {
     let stack_for_timer_interrupt = PAGE_MAP.allocate(2);
     if stack_for_timer_interrupt.is_null() {
         panic!("Failed to allocate 2 pages");
@@ -101,11 +105,59 @@ fn main2(_runtime: SystemTable<Runtime>) -> Result<()> {
 
     interrupt::init()?;
 
+    let rsdp = 'search: {
+        for config in runtime.config_table() {
+            if config.guid == ACPI2_GUID {
+                // Addresses in ACPI2 are referenced as physical. See
+                // https://uefi.org/specs/UEFI/2.10/04_EFI_System_Table.html#industry-standard-configuration-tables
+                let addr = paging::pyhs_to_virt(config.address as _).unwrap();
+                // Safety: `runtime` and `phys_to_virt()` are proper.
+                break 'search match unsafe { Rsdp::from_ptr(addr.addr as _) } {
+                    Ok(rsdp) => rsdp,
+                    Err(e) => error!(format!("{:?}", e)),
+                };
+            }
+        }
+        panic!("not found RSDP!");
+    };
+
+    let mut fadt = None;
+    for entry in rsdp.xsdt().unwrap().entries() {
+        match entry {
+            DescriptionTable::Fadt(entry) => fadt = Some(entry),
+            _ => {}
+        }
+    }
+    if fadt.is_none() {
+        panic!("not found FADT");
+    }
+    let fadt = fadt.unwrap();
+
+    let pm_timer_32 = unsafe { core::ptr::addr_of!(fadt.flags).read_unaligned() }.get_bit(8);
+    let pm_tmr_blk = fadt.pm_tmr_blk as _;
+
+    apic::set_divide_config(0);
+    let start = asmfunc::io_in(pm_tmr_blk);
+    apic::set_init_count(u32::MAX);
+    const PM_TIMER_FREQ: u64 = 3579545;
+    let msec = 1000;
+    let end = start + (PM_TIMER_FREQ * msec / 1000) as u32;
+    let end = if pm_timer_32 { end } else { end.get_bits(..24) };
+
+    if end < start {
+        while asmfunc::io_in(pm_tmr_blk) >= start {}
+    }
+    while asmfunc::io_in(pm_tmr_blk) < end {}
+    let current_count = apic::current_count();
+    apic::set_init_count(0);
+    let apic_freq = u32::MAX - current_count;
+
     TASK_MANAGER.init();
 
+    const TIMER_INT_FREQ: u32 = 100;
     apic::set_lvt_timer(0x40, false, true);
-    apic::set_divide_config(1);
-    apic::set_init_count(100000);
+    apic::set_divide_config(0);
+    apic::set_init_count(apic_freq / TIMER_INT_FREQ);
     asmfunc::sti();
 
     TASK_MANAGER.register_new_task(count, 1, 1 << 3, 2 << 3);
