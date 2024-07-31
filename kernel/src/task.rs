@@ -53,7 +53,9 @@ impl TaskManager {
         // Safety: lock is acquired.
         let tasks = unsafe { &mut *self.tasks.get() };
         let queue = unsafe { &mut *self.queue.get() };
-        tasks.insert(0, UnsafeCell::new(Task::new(0, 0)));
+        let mut task = Task::new(0, 0);
+        task.state = TaskState::Running;
+        tasks.insert(0, UnsafeCell::new(task));
         queue.push_back(0);
     }
 
@@ -66,7 +68,8 @@ impl TaskManager {
         let queue = unsafe { &mut *self.queue.get() };
 
         let new_id = self.determine_id(Some(&mut lock));
-        let new_task = Task::with_function(new_id, priority, f, cs, ss);
+        let mut new_task = Task::with_function(new_id, priority, f, cs, ss);
+        new_task.state = TaskState::Ready;
 
         tasks.insert(new_task.id, UnsafeCell::new(new_task));
         queue.push_back(new_id);
@@ -75,7 +78,12 @@ impl TaskManager {
     /// Start task management (by enabling interrupt).
     pub fn start(&self) -> ! {
         asmfunc::sti();
+        let mut i = 0;
         loop {
+            i += 1;
+            if i == 500 {
+                self.wake_up(1);
+            }
             asmfunc::hlt();
         }
     }
@@ -114,6 +122,67 @@ impl TaskManager {
         restore_context(next_task.ctx.as_ref());
     }
 
+    /// Returns the id of the current task, that is the task calling this method.
+    pub fn task_id(&self) -> u32 {
+        // Safety: `self.running_id` can be changed, but changing occurs other tasks or interrupt
+        //         handler. `self.running_id` is always the same number here.
+        // TODO: We should running_id for each processors when enable multi processing.
+        unsafe { *self.running_id.get() }
+    }
+
+    /// Sleep the current task, that is the task calling this method.
+    pub fn sleep(&self) {
+        let if_is_set = asmfunc::get_if();
+        asmfunc::cli();
+        let mut lock = self.lock.lock();
+        // Safety: lock is acquired and itnerrupt disabled.
+        let tasks = unsafe { &mut *self.tasks.get() };
+        let queue = unsafe { &mut *self.queue.get() };
+        let current = unsafe { &mut *self.running_id.get() };
+        let current_task = unsafe { &mut *tasks.get(current).unwrap().get() };
+
+        current_task.state = TaskState::Bloked;
+        queue.pop_front();
+
+        let next = self.rotate(Some(&mut lock));
+        *current = next;
+        // Safety: lock is acquired and itnerrupt disabled.
+        let next_task = unsafe { &mut *tasks.get(&next).unwrap().get() };
+        // We should release lock here because we can never release it after context switch. (Any
+        // task never return here on the same context, because another tasks must wakes up current
+        // task to return here but no tasks can acquire lock to do so.
+        // We have to consider rece conditions, but before `IRET` instruction, IF flag is not set.
+        // Since another interrupt cannot occur, race conditions do not.
+        drop(lock);
+        switch_context(&next_task.ctx, &mut current_task.ctx);
+
+        // Returns here if another task wakes it up.
+        if if_is_set {
+            asmfunc::sti();
+        }
+    }
+
+    /// Wakes up the task, whose id is `id`.
+    // FIXME: Since this method disable interrupts, may reduce task switching, espescially calling
+    //        much times. Consider better way.
+    pub fn wake_up(&self, id: u32) {
+        asmfunc::cli();
+        let _lock = self.lock.lock();
+        // Safety: lock is acquierd and interrupts disabled.
+        let tasks = unsafe { &*self.tasks.get() };
+        let queue = unsafe { &mut *self.queue.get() };
+        // Check task existane.
+        if let Some(task) = tasks.get(&id) {
+            let task = unsafe { &mut *task.get() };
+            // Make sure that the task is sleeping to avoid the same id appeared in the queue.
+            if task.state == TaskState::Bloked {
+                task.state = TaskState::Ready;
+                queue.push_back(id);
+            }
+        }
+        asmfunc::sti();
+    }
+
     fn rotate(&self, lock: Option<&mut InterruptFreeMutexGuard<'_, ()>>) -> u32 {
         let _lock = if lock.is_some() {
             None
@@ -121,10 +190,13 @@ impl TaskManager {
             Some(self.lock.lock())
         };
 
+        let tasks = unsafe { &mut *self.tasks.get() };
         let queue = unsafe { &mut *self.queue.get() };
         let current_id = queue.pop_front().unwrap();
+        unsafe { (*tasks.get(&current_id).unwrap().get()).state = TaskState::Ready };
         queue.push_back(current_id);
         let next_id = queue.front().copied().unwrap();
+        unsafe { (*tasks.get(&next_id).unwrap().get()).state = TaskState::Running };
         next_id
     }
 
@@ -148,9 +220,20 @@ impl Default for TaskManager {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+enum TaskState {
+    /// Represents the task is currently running.
+    Running,
+    /// Not running but in queue.
+    Ready,
+    /// Not listed in queue. Call [`TaskManager::wake_up()`] to running this task.
+    Bloked,
+}
+
 #[derive(Debug)]
 pub struct Task {
     id: u32,
+    state: TaskState,
     // Should be saved in ProcessManager?
     _priority: u32,
     ctx: Box<Context>,
@@ -161,6 +244,7 @@ impl Task {
     pub fn new(id: u32, priority: u32) -> Self {
         Self {
             id,
+            state: TaskState::Bloked,
             _priority: priority,
             ctx: Box::new(Context::new()),
             _stack: Stack::new(0),
@@ -178,6 +262,7 @@ impl Task {
         ctx.rflags = 0x202;
         Self {
             id,
+            state: TaskState::Bloked,
             _priority: priority,
             ctx: Box::new(ctx),
             _stack: stack,
@@ -277,7 +362,6 @@ impl Stack {
 }
 
 /// Switch context from `current` to `next`.
-#[allow(dead_code)]
 fn switch_context(next: &Context, current: &mut Context) {
     unsafe { _switch_context(next, current) };
 }
