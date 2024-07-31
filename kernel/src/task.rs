@@ -72,6 +72,14 @@ impl TaskManager {
         queue.push_back(new_id);
     }
 
+    /// Start task management (by enabling interrupt).
+    pub fn start(&self) -> ! {
+        asmfunc::sti();
+        loop {
+            asmfunc::hlt();
+        }
+    }
+
     /// Saves current context `prev_ctx` and switches task.
     ///
     /// # Safety

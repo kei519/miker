@@ -104,14 +104,8 @@ fn main2(runtime: SystemTable<Runtime>) -> Result<()> {
     acpi::init(runtime)?;
     timer::init()?;
     TASK_MANAGER.init();
-
-    asmfunc::sti();
-
     TASK_MANAGER.register_new_task(screen::drawing_task, 1, 1 << 3, 2 << 3);
-
-    loop {
-        asmfunc::hlt();
-    }
+    TASK_MANAGER.start();
 }
 
 #[panic_handler]
