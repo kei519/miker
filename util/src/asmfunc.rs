@@ -118,6 +118,30 @@ pub fn get_if() -> bool {
     flags.get_bit(9)
 }
 
+/// Input 32 bits from I/O port in `port`.
+pub fn io_in(port: u16) -> u32 {
+    let ret;
+    unsafe {
+        asm!(
+            "in eax, dx",
+            in("dx") port,
+            out("eax") ret,
+        )
+    }
+    ret
+}
+
+/// Outpu 32 bits to I/O port in `port`.
+pub fn io_out(port: u16, value: u32) {
+    unsafe {
+        asm!(
+            "out dx, eax",
+            in("dx") port,
+            in("eax") value,
+        )
+    };
+}
+
 /// Set CS and SS to `cs` and `ss`, respectively.
 pub fn set_cs_ss(cs: u16, ss: u16) {
     unsafe { _set_cs_ss(cs, ss) };
