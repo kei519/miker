@@ -107,20 +107,10 @@ fn main2(runtime: SystemTable<Runtime>) -> Result<()> {
 
     asmfunc::sti();
 
-    TASK_MANAGER.register_new_task(count, 1, 1 << 3, 2 << 3);
+    TASK_MANAGER.register_new_task(screen::drawing_task, 1, 1 << 3, 2 << 3);
 
     loop {
         asmfunc::hlt();
-    }
-}
-
-fn count() {
-    let mut i = 0;
-    let mut screen = GrayscaleScreen::new(FB_INFO.as_ref().clone());
-    loop {
-        screen.print(&format!("count: {:010}", i), (0, 0));
-        i += 1;
-        unsafe { core::arch::asm!("hlt") };
     }
 }
 
