@@ -27,8 +27,9 @@ static COUNT: AtomicU64 = AtomicU64::new(0);
 pub fn init() -> Result<()> {
     apic::set_divide_config(0);
     apic::start_count();
-    wait_for_msec(1000);
-    APIC_TIMER_FREQ.init(apic::elapsed_count());
+    // We want to measure 1s, but it would spend much time, so measure 0.1s instead.
+    wait_for_msec(100);
+    APIC_TIMER_FREQ.init(apic::elapsed_count() * 10);
     apic::stop_count();
 
     apic::set_lvt_timer(TIMER_INT_VEC, false, true);
