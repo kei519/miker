@@ -4,6 +4,7 @@
 #![deny(improper_ctypes)]
 #![deny(improper_ctypes_definitions)]
 
+mod acpi;
 mod interrupt;
 mod memmap;
 mod paging;
@@ -11,16 +12,13 @@ mod screen;
 mod task;
 
 use core::fmt::Write as _;
-use core::ptr;
 
 use alloc::format;
 use task::TASK_MANAGER;
-use uefi::table::cfg::ACPI2_GUID;
 use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
-use util::acpi::{DescriptionTable, Rsdp};
+use util::apic;
 use util::bitfield::BitField;
 use util::paging::PAGE_SIZE;
-use util::{apic, error};
 use util::{
     asmfunc,
     buffer::StrBuf,
@@ -30,6 +28,8 @@ use util::{
     screen::{FrameBufferInfo, GrayscaleScreen},
     sync::OnceStatic,
 };
+
+use crate::acpi::FADT;
 
 use {memmap::PAGE_MAP, screen::FB_INFO};
 
@@ -104,35 +104,9 @@ fn main2(runtime: SystemTable<Runtime>) -> Result<()> {
     asmfunc::load_tr(3 << 3);
 
     interrupt::init()?;
+    acpi::init(runtime)?;
 
-    let rsdp = 'search: {
-        for config in runtime.config_table() {
-            if config.guid == ACPI2_GUID {
-                // Addresses in ACPI2 are referenced as physical. See
-                // https://uefi.org/specs/UEFI/2.10/04_EFI_System_Table.html#industry-standard-configuration-tables
-                let addr = paging::pyhs_to_virt(config.address as _).unwrap();
-                // Safety: `runtime` and `phys_to_virt()` are proper.
-                break 'search match unsafe { Rsdp::from_ptr(addr.addr as _) } {
-                    Ok(rsdp) => rsdp,
-                    Err(e) => error!(format!("{:?}", e)),
-                };
-            }
-        }
-        panic!("not found RSDP!");
-    };
-
-    let mut fadt = None;
-    for entry in rsdp.xsdt().unwrap().entries() {
-        match entry {
-            DescriptionTable::Fadt(entry) => fadt = Some(entry),
-            _ => {}
-        }
-    }
-    if fadt.is_none() {
-        panic!("not found FADT");
-    }
-    let fadt = fadt.unwrap();
-
+    let fadt = FADT.get();
     let pm_timer_32 = unsafe { core::ptr::addr_of!(fadt.flags).read_unaligned() }.get_bit(8);
     let pm_tmr_blk = fadt.pm_tmr_blk as _;
 
