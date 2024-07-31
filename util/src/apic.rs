@@ -74,3 +74,20 @@ pub fn set_divide_config(order: u8) {
         )
     };
 }
+
+/// Starts oneshot counting timer with disabling timer interrupt. Set divide config as you want
+/// before calling.
+pub fn start_count() {
+    set_lvt_timer(0, true, false);
+    set_init_count(u32::MAX);
+}
+
+/// Stops counting timer.
+pub fn stop_count() {
+    set_init_count(0);
+}
+
+/// Returns elapsed count after [`count_start()`] called.
+pub fn elapsed_count() -> u32 {
+    u32::MAX - current_count()
+}
