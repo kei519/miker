@@ -103,6 +103,15 @@ impl AddressConverter {
     pub fn get_ptr<T>(&self, addr: u64) -> Option<NonNull<T>> {
         NonNull::new((self.converter)(addr) as _)
     }
+
+    /// Returns the virtual address corresponding to a physical address `addr` if there is
+    /// conversion.
+    pub fn get_addr(&self, addr: u64) -> Option<u64> {
+        match (self.converter)(addr) {
+            0 => None,
+            addr => Some(addr),
+        }
+    }
 }
 
 /// Represents PML4, PDP, PD, PT and a page pointed by a PT.
