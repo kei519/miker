@@ -3,13 +3,12 @@
 use core::arch::global_asm;
 
 use util::{
-    apic,
     descriptor::{self, SystemDescriptor},
     error::Result,
     sync::OnceStatic,
 };
 
-use crate::task::{Context, TASK_MANAGER};
+pub const TIMER_INT_VEC: u8 = 0x40;
 
 /// Declares default interrupt handler function named `int_handler_<arg>` without an error code.
 /// Declared function prints capital `arg`, RIP, CS, RFLAGS, RSP and SS on the screen if
@@ -147,7 +146,7 @@ pub fn init() -> Result<()> {
         SystemDescriptor::new_interrupt(int_handler_ve, 1 << 3, 0, 0),
     )?;
     idt.set(
-        0x40,
+        TIMER_INT_VEC as _,
         SystemDescriptor::new_interrupt(int_handler_timer, 1 << 3, 1, 0),
     )?;
 
@@ -175,13 +174,6 @@ fault_handler_with_error!(AC);
 fault_handler_no_error!(MC);
 fault_handler_no_error!(XM);
 fault_handler_no_error!(VE);
-
-#[no_mangle]
-fn _int_handler_timer(prev_ctx: &Context) {
-    apic::notify_end_of_interrupt();
-    // Safety: This is in interrupt handler and IF is not set.
-    unsafe { TASK_MANAGER.switch(prev_ctx) };
-}
 
 extern "sysv64" {
     /// Saves context before interrupt, and call [`_int_handler_tiemr`] with an argument, the
@@ -236,7 +228,6 @@ int_handler_timer:
     # Pass the reference to previous context as the first argument.
     lea rdi, [rsp]
     call _int_handler_timer
-    # Usually does not return here.
 
     # Discard up to GS
     add rsp, 8 * 8

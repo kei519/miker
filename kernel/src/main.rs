@@ -10,14 +10,13 @@ mod memmap;
 mod paging;
 mod screen;
 mod task;
+mod timer;
 
 use core::fmt::Write as _;
 
 use alloc::format;
 use task::TASK_MANAGER;
 use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
-use util::apic;
-use util::bitfield::BitField;
 use util::paging::PAGE_SIZE;
 use util::{
     asmfunc,
@@ -28,8 +27,6 @@ use util::{
     screen::{FrameBufferInfo, GrayscaleScreen},
     sync::OnceStatic,
 };
-
-use crate::acpi::FADT;
 
 use {memmap::PAGE_MAP, screen::FB_INFO};
 
@@ -105,33 +102,9 @@ fn main2(runtime: SystemTable<Runtime>) -> Result<()> {
 
     interrupt::init()?;
     acpi::init(runtime)?;
-
-    let fadt = FADT.get();
-    let pm_timer_32 = unsafe { core::ptr::addr_of!(fadt.flags).read_unaligned() }.get_bit(8);
-    let pm_tmr_blk = fadt.pm_tmr_blk as _;
-
-    apic::set_divide_config(0);
-    let start = asmfunc::io_in(pm_tmr_blk);
-    apic::set_init_count(u32::MAX);
-    const PM_TIMER_FREQ: u64 = 3579545;
-    let msec = 1000;
-    let end = start + (PM_TIMER_FREQ * msec / 1000) as u32;
-    let end = if pm_timer_32 { end } else { end.get_bits(..24) };
-
-    if end < start {
-        while asmfunc::io_in(pm_tmr_blk) >= start {}
-    }
-    while asmfunc::io_in(pm_tmr_blk) < end {}
-    let current_count = apic::current_count();
-    apic::set_init_count(0);
-    let apic_freq = u32::MAX - current_count;
-
+    timer::init()?;
     TASK_MANAGER.init();
 
-    const TIMER_INT_FREQ: u32 = 100;
-    apic::set_lvt_timer(0x40, false, true);
-    apic::set_divide_config(0);
-    apic::set_init_count(apic_freq / TIMER_INT_FREQ);
     asmfunc::sti();
 
     TASK_MANAGER.register_new_task(count, 1, 1 << 3, 2 << 3);
