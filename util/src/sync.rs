@@ -1,6 +1,7 @@
 //! Useful syncronization primitives.
 
 use core::{
+    any,
     cell::UnsafeCell,
     hint,
     mem::MaybeUninit,
@@ -106,7 +107,10 @@ impl<T: Copy> OnceStatic<T> {
     /// May panic if it is not initialized.
     pub fn get(&self) -> T {
         if !self.is_initialized.load(Acquire) {
-            panic!("OnceStatic is not initialized!");
+            panic!(
+                "OnceStatic ({:?}) is not initialized!",
+                any::type_name_of_val(self)
+            );
         }
         // Safety: Once `is_initialized` set to `true` after initializing, no one overwriter
         //      `data`. This leads there is no data rece.
@@ -139,7 +143,10 @@ impl<T> AsRef<T> for OnceStatic<T> {
     /// May panic if it is not initialzed.
     fn as_ref(&self) -> &T {
         if !self.is_initialized.load(Acquire) {
-            panic!("OnceStatic is not initialized!");
+            panic!(
+                "OnceStatic ({:?}) is not initialized!",
+                any::type_name_of_val(self)
+            );
         }
         // Safety: Once `is_initialized` set to `true` after initializing, no one overwriter
         //      `data`. This leads there is no data rece.
