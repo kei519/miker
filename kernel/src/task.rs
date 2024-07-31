@@ -78,12 +78,7 @@ impl TaskManager {
     /// Start task management (by enabling interrupt).
     pub fn start(&self) -> ! {
         asmfunc::sti();
-        let mut i = 0;
         loop {
-            i += 1;
-            if i == 500 {
-                self.wake_up(1);
-            }
             asmfunc::hlt();
         }
     }
