@@ -18,18 +18,20 @@ const DEFAULT_STACK_SIZE_IN_PAGES: usize = 16;
 
 pub static TASK_MANAGER: TaskManager = TaskManager::new();
 
+pub type TaskId = u32;
+
 /// Managing task schedule.
 // TODO: Support multi processor.
 #[derive(Debug)]
 pub struct TaskManager {
     /// All tasks not exited.
-    tasks: UnsafeCell<HashMap<u32, UnsafeCell<Task>>>,
+    tasks: UnsafeCell<HashMap<TaskId, UnsafeCell<Task>>>,
     /// Runnnig queue.
-    queue: UnsafeCell<VecDeque<u32>>,
+    queue: UnsafeCell<VecDeque<TaskId>>,
     /// Currently running tasks's id.
-    running_id: UnsafeCell<u32>,
+    running_id: UnsafeCell<TaskId>,
     /// Id that was used on last registering task.
-    head_id: UnsafeCell<u32>,
+    head_id: UnsafeCell<TaskId>,
     lock: InterruptFreeMutex<()>,
 }
 
@@ -118,7 +120,7 @@ impl TaskManager {
     }
 
     /// Returns the id of the current task, that is the task calling this method.
-    pub fn task_id(&self) -> u32 {
+    pub fn task_id(&self) -> TaskId {
         // Safety: `self.running_id` can be changed, but changing occurs other tasks or interrupt
         //         handler. `self.running_id` is always the same number here.
         // TODO: We should running_id for each processors when enable multi processing.
@@ -160,7 +162,7 @@ impl TaskManager {
     /// Wakes up the task, whose id is `id`.
     // FIXME: Since this method disable interrupts, may reduce task switching, espescially calling
     //        much times. Consider better way.
-    pub fn wake_up(&self, id: u32) {
+    pub fn wake_up(&self, id: TaskId) {
         asmfunc::cli();
         let _lock = self.lock.lock();
         // Safety: lock is acquierd and interrupts disabled.
@@ -178,7 +180,7 @@ impl TaskManager {
         asmfunc::sti();
     }
 
-    fn rotate(&self, lock: Option<&mut InterruptFreeMutexGuard<'_, ()>>) -> u32 {
+    fn rotate(&self, lock: Option<&mut InterruptFreeMutexGuard<'_, ()>>) -> TaskId {
         let _lock = if lock.is_some() {
             None
         } else {
@@ -195,7 +197,7 @@ impl TaskManager {
         next_id
     }
 
-    fn determine_id(&self, lock: Option<&mut InterruptFreeMutexGuard<'_, ()>>) -> u32 {
+    fn determine_id(&self, lock: Option<&mut InterruptFreeMutexGuard<'_, ()>>) -> TaskId {
         let _lock = match lock {
             Some(_) => None,
             None => Some(self.lock.lock()),
@@ -203,7 +205,10 @@ impl TaskManager {
 
         let head_id = unsafe { &mut *self.head_id.get() };
         match head_id.checked_add(1) {
-            Some(next) => next,
+            Some(next) => {
+                *head_id = next;
+                next
+            }
             None => todo!("Not supported that the number of registerd tasks exceeds 0xFFFF_FFFF."),
         }
     }
@@ -227,7 +232,7 @@ enum TaskState {
 
 #[derive(Debug)]
 pub struct Task {
-    id: u32,
+    id: TaskId,
     state: TaskState,
     // Should be saved in ProcessManager?
     _priority: u32,
@@ -236,7 +241,7 @@ pub struct Task {
 }
 
 impl Task {
-    pub fn new(id: u32, priority: u32) -> Self {
+    pub fn new(id: TaskId, priority: u32) -> Self {
         Self {
             id,
             state: TaskState::Bloked,
@@ -246,7 +251,7 @@ impl Task {
         }
     }
 
-    pub fn with_function(id: u32, priority: u32, f: fn(), cs: u16, ss: u16) -> Self {
+    pub fn with_function(id: TaskId, priority: u32, f: fn(), cs: u16, ss: u16) -> Self {
         let mut ctx = Context::new();
         let stack = Stack::new(DEFAULT_STACK_SIZE_IN_PAGES);
         ctx.cr3 = asmfunc::get_cr3();
