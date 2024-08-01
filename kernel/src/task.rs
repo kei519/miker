@@ -13,6 +13,7 @@ use util::{
 };
 
 use crate::memmap::PAGE_MAP;
+use crate::MUTEX_TEST;
 
 const DEFAULT_STACK_SIZE_IN_PAGES: usize = 16;
 
@@ -79,7 +80,24 @@ impl TaskManager {
 
     /// Start task management (by enabling interrupt).
     pub fn start(&self) -> ! {
+        let mut lock = MUTEX_TEST.lock();
+        let mut i = 0;
+        assert_eq!(*lock, 0);
         asmfunc::sti();
+        for _ in 0..300 {
+            i += 1;
+            asmfunc::hlt();
+        }
+        *lock = 300;
+        drop(lock);
+
+        for _ in 300..305 {
+            let mut lock = MUTEX_TEST.lock();
+            i += 1;
+            *lock = i;
+            asmfunc::hlt();
+        }
+
         loop {
             asmfunc::hlt();
         }

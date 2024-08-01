@@ -9,12 +9,14 @@ mod interrupt;
 mod memmap;
 mod paging;
 mod screen;
+mod sync;
 mod task;
 mod timer;
 
 use core::fmt::Write as _;
 
 use alloc::format;
+use sync::Mutex;
 use task::TASK_MANAGER;
 use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
 use util::paging::PAGE_SIZE;
@@ -50,6 +52,8 @@ _start:
 
 /// Global TSS.
 static TSS: OnceStatic<descriptor::TSS> = OnceStatic::new();
+
+pub static MUTEX_TEST: Mutex<i32> = Mutex::new(0);
 
 #[no_mangle]
 fn main(fb_info: &FrameBufferInfo, memmap: &'static mut MemoryMap, runtime: SystemTable<Runtime>) {
@@ -105,7 +109,15 @@ fn main2(runtime: SystemTable<Runtime>) -> Result<()> {
     timer::init()?;
     TASK_MANAGER.init();
     TASK_MANAGER.register_new_task(screen::drawing_task, 1, 1 << 3, 2 << 3);
+    TASK_MANAGER.register_new_task(just_hlt, 1, 1 << 3, 2 << 3);
+    TASK_MANAGER.register_new_task(just_hlt, 1, 1 << 3, 2 << 3);
     TASK_MANAGER.start();
+}
+
+fn just_hlt() {
+    loop {
+        asmfunc::hlt();
+    }
 }
 
 #[panic_handler]
