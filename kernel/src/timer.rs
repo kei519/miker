@@ -14,7 +14,7 @@ use crate::{
 pub const TIMER_INT_FREQ: u32 = 100;
 
 /// Task swithing frequency in Hz.
-pub const TASK_SWITCH_FREQ: u32 = 2;
+pub const TASK_SWITCH_FREQ: u32 = 5;
 
 // NOTE: We define it as `u64` to avoid overflowing when calculating how many count wait for
 // `wait_for_msec`.
