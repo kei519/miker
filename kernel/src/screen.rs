@@ -63,10 +63,10 @@ impl Console {
             self.lines.pop_front();
             self.lines.push_back(line);
             for (row, line) in self.lines.iter().enumerate() {
-                self.screen.print(line, (0, row * 16));
+                self.screen.print_str(line, (0, row * 16));
             }
         } else {
-            self.screen.print(&line, (0, self.row * 16));
+            self.screen.print_str(&line, (0, self.row * 16));
             self.lines.push_back(line);
             self.row += 1;
         }

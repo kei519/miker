@@ -71,7 +71,7 @@ fn main(fb_info: &FrameBufferInfo, memmap: &'static mut MemoryMap, runtime: Syst
         Ok(_) => unreachable!(),
         Err(e) => {
             let mut screen = GrayscaleScreen::new(FB_INFO.as_ref().clone());
-            screen.print(&format!("{}", e), (0, 0));
+            screen.print_str(&format!("{}", e), (0, 0));
             loop {
                 asmfunc::hlt();
             }
@@ -130,7 +130,7 @@ fn _panic_handler(info: &core::panic::PanicInfo) -> ! {
         let mut buf = [0; 4 * 1024];
         let mut buf = StrBuf::new(&mut buf);
         let _ = write!(buf, "{:#}", info);
-        screen.print(buf.to_str(), (0, 0))
+        screen.print_str(buf.to_str(), (0, 0))
     }
 
     loop {
