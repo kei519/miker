@@ -2,11 +2,10 @@
 
 use core::iter;
 
-use alloc::{collections::VecDeque, format, string::String};
+use alloc::{collections::VecDeque, string::String};
 use util::{
     asmfunc,
-    bitfield::BitField,
-    graphics::{Color, Print as _},
+    graphics::GrayscalePrint as _,
     screen::{FrameBufferInfo, Screen},
     sync::OnceStatic,
 };
@@ -27,16 +26,11 @@ pub fn drawing_task() {
         col_num: FB_INFO.as_ref().horizontal_resolution / 8,
         row_num: FB_INFO.as_ref().vertical_resolution / 16,
     };
-    let mut color = 0u32;
+
     loop {
         let mut strings = STRINGS.lock();
         while let Some(s) = strings.pop_front() {
-            let r = 13;
-            let g = 19;
-            let b = 29;
-            color += r << 16 | g << 8 | b;
-            color &= 0xffffff;
-            console.draw_str(s, color);
+            console.draw_str(s);
         }
         drop(strings);
         asmfunc::hlt();
@@ -53,16 +47,14 @@ struct Console {
 }
 
 impl Console {
-    fn draw_str(&mut self, s: impl Into<String>, color: impl Into<Color>) {
-        let color = color.into();
+    fn draw_str(&mut self, s: impl Into<String>) {
         let s: String = s.into();
         for line in s.lines() {
-            self.draw_line(line.chars(), color);
+            self.draw_line(line.chars());
         }
     }
 
-    fn draw_line(&mut self, line: impl IntoIterator<Item = char>, color: impl Into<Color>) {
-        let color = color.into();
+    fn draw_line(&mut self, line: impl IntoIterator<Item = char>) {
         let line = line
             .into_iter()
             .chain(iter::repeat(' '))
@@ -72,10 +64,10 @@ impl Console {
             self.lines.pop_front();
             self.lines.push_back(line);
             for (row, line) in self.lines.iter().enumerate() {
-                self.screen.print_str(line, (0, row * 16), color);
+                self.screen.print_str(line, (0, row * 16));
             }
         } else {
-            self.screen.print_str(&line, (0, self.row * 16), color);
+            self.screen.print_str(&line, (0, self.row * 16));
             self.lines.push_back(line);
             self.row += 1;
         }
