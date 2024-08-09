@@ -2,7 +2,7 @@
 
 use core::slice;
 
-use crate::graphics::GrayscalePixelWrite;
+use crate::graphics::{Color, GrayscalePixelWrite};
 
 /// Represents an information of frame buffer.
 #[derive(Debug, Clone)]
@@ -75,9 +75,7 @@ impl GrayscalePixelWrite for GrayscaleScreen {
         }
 
         // Convert grayscale intensity to RGB color.
-        let color = color as u32;
-        // Since red, green and blue intensities are all same, we don't have to check format.
-        let color = color << 16 | color << 8 | color;
+        let color = Color::from(color).into();
 
         let addr = self.info.frame_buffer + (self.info.pixels_per_scanline * pos.1 + pos.0) * 4;
         unsafe { *(addr as *mut u32) = color };
