@@ -127,6 +127,7 @@ fn _panic_handler(info: &core::panic::PanicInfo) -> ! {
     asmfunc::cli();
     if FB_INFO.is_initialized() {
         let mut screen = GrayscaleScreen::new(FB_INFO.as_ref().clone());
+        screen.clear();
         let mut buf = [0; 4 * 1024];
         let mut buf = StrBuf::new(&mut buf);
         let _ = write!(buf, "{:#}", info);

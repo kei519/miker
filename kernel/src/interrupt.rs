@@ -29,6 +29,7 @@ macro_rules! fault_handler_no_error {
                 let _ = writeln!(buf, "SS:RSP {:04x} {:016x}", frame.ss, frame.rsp);
                 let mut screen =
                     util::screen::GrayscaleScreen::new(crate::screen::FB_INFO.as_ref().clone());
+                screen.clear();
                 screen.print_str(buf.to_str(), (500, 0));
                 loop {
                     util::asmfunc::hlt();
@@ -58,6 +59,7 @@ macro_rules! fault_handler_with_error {
                 let _ = writeln!(buf, "ERR    {:016x}", error_code);
                 let mut screen =
                     util::screen::GrayscaleScreen::new(crate::screen::FB_INFO.as_ref().clone());
+                screen.clear();
                 screen.print_str(buf.to_str(), (500, 0));
                 loop {
                     util::asmfunc::hlt();
