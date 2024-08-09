@@ -26,7 +26,7 @@ use util::{
     descriptor::{self, SegmentDescriptor, SegmentType, SystemDescriptor, GDT},
     error::Result,
     graphics::GrayscalePrint as _,
-    screen::{FrameBufferInfo, GrayscaleScreen},
+    screen::{FrameBufferInfo, Screen},
     sync::OnceStatic,
 };
 
@@ -70,7 +70,7 @@ fn main(fb_info: &FrameBufferInfo, memmap: &'static mut MemoryMap, runtime: Syst
     match main2(runtime) {
         Ok(_) => unreachable!(),
         Err(e) => {
-            let mut screen = GrayscaleScreen::new(FB_INFO.as_ref().clone());
+            let mut screen = Screen::new(FB_INFO.as_ref().clone());
             screen.print_str(&format!("{}", e), (0, 0));
             loop {
                 asmfunc::hlt();
@@ -126,7 +126,7 @@ fn just_print() {
 fn _panic_handler(info: &core::panic::PanicInfo) -> ! {
     asmfunc::cli();
     if FB_INFO.is_initialized() {
-        let mut screen = GrayscaleScreen::new(FB_INFO.as_ref().clone());
+        let mut screen = Screen::new(FB_INFO.as_ref().clone());
         screen.clear();
         let mut buf = [0; 4 * 1024];
         let mut buf = StrBuf::new(&mut buf);
