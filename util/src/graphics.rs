@@ -26,14 +26,15 @@ pub trait GrayscalePrint: GrayscalePixelWrite {
         let col_num = width / 8;
         let row_num = (height - pos.1) / 16;
         let mut row = 0;
-        let mut col = 0;
         for line in s.lines() {
+            let mut col = 0;
             if row >= row_num {
                 break;
             }
             for c in line.chars() {
                 if col >= col_num {
-                    break;
+                    row += 1;
+                    col = 0;
                 }
                 col += self.print_char(c, (pos.0 + col * 8, pos.1 + row * 16));
             }
@@ -45,7 +46,7 @@ pub trait GrayscalePrint: GrayscalePixelWrite {
     fn print_char(&mut self, c: char, pos: (usize, usize)) -> usize {
         if c.is_ascii() {
             for (y, &byte) in font_data::get_font(c as _).iter().enumerate() {
-                for (x, color) in (0..9)
+                for (x, color) in (0..8)
                     .map(|i| if byte >> (7 - i) & 1 != 0 { 0xff } else { 0x00 })
                     .enumerate()
                 {
@@ -137,14 +138,15 @@ pub trait Print: PixelWrite {
         let col_num = width / 8;
         let row_num = (height - pos.1) / 16;
         let mut row = 0;
-        let mut col = 0;
         for line in s.lines() {
+            let mut col = 0;
             if row >= row_num {
                 break;
             }
             for c in line.chars() {
                 if col >= col_num {
-                    break;
+                    row += 1;
+                    col = 0;
                 }
                 col += Print::print_char(self, c, (pos.0 + col * 8, pos.1 + row * 16), color);
             }
@@ -158,7 +160,7 @@ pub trait Print: PixelWrite {
 
         if c.is_ascii() {
             for (y, &byte) in font_data::get_font(c as _).iter().enumerate() {
-                for (x, color) in (0..9)
+                for (x, color) in (0..8)
                     .map(|i| {
                         if byte >> (7 - i) & 1 != 0 {
                             color
