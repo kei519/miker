@@ -15,10 +15,12 @@ mod timer;
 
 use core::fmt::Write as _;
 
+use acpi::MMIO_PHYS_BASE;
 use alloc::format;
 use task::TASK_MANAGER;
 use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
 use util::paging::PAGE_SIZE;
+use util::pci::ConfigSpace;
 use util::{
     asmfunc,
     buffer::StrBuf,
@@ -104,6 +106,24 @@ fn main2(runtime: SystemTable<Runtime>) -> Result<()> {
     screen::init();
     interrupt::init()?;
     acpi::init(runtime)?;
+
+    for bus in 0..256 {
+        for dev in 0..32 {
+            for func in 0..8 {
+                let offset = bus << 16 | dev << 11 | func << 8;
+                let config = unsafe { ConfigSpace::from_ptr((MMIO_PHYS_BASE.get() + offset) as _) };
+                if ![0, 0xffff].contains(&config.vendor_id) {
+                    printkln!(
+                        "{:02x}:{:02x}.{:02x}",
+                        config.base_class,
+                        config.sub_class,
+                        config.interface
+                    );
+                }
+            }
+        }
+    }
+
     timer::init()?;
     TASK_MANAGER.init();
     TASK_MANAGER.start();
