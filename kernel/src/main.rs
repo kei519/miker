@@ -107,22 +107,11 @@ fn main2(runtime: SystemTable<Runtime>) -> Result<()> {
     timer::init()?;
     TASK_MANAGER.init();
     TASK_MANAGER.register_new_task(just_print, 1, 1 << 3, 2 << 3);
-    TASK_MANAGER.register_new_task(just_print2, 1, 1 << 3, 2 << 3);
+    TASK_MANAGER.register_new_task(just_print, 1, 1 << 3, 2 << 3);
     TASK_MANAGER.start();
 }
 
 fn just_print() {
-    let task_id = TASK_MANAGER.task_id();
-    for i in 0u64.. {
-        if i % 10 == 0 {
-            printk!("from just_print");
-            printk!("({}): i={:010}\n", task_id, i);
-        }
-        asmfunc::hlt();
-    }
-}
-
-fn just_print2() {
     let task_id = TASK_MANAGER.task_id();
     for i in 0u64.. {
         if i % 10 == 0 {
