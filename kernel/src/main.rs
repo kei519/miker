@@ -115,11 +115,9 @@ fn main2(runtime: SystemTable<Runtime>) -> Result<()> {
 fn just_print() {
     let task_id = TASK_MANAGER.task_id();
     for i in 0u64.. {
-        if i % 100 == 0 {
-            CONSOLE
-                .as_ref()
-                .lock()
-                .draw_str(format!("from just_print({}): i={:010}", task_id, i));
+        if i % 10 == 0 {
+            let mut console = CONSOLE.as_ref().lock();
+            writeln!(console, "from just_print({}): i={:010}", task_id, i).unwrap();
         }
         asmfunc::hlt();
     }
