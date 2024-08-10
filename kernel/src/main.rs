@@ -16,7 +16,7 @@ mod timer;
 use core::fmt::Write as _;
 
 use alloc::format;
-use screen::STRINGS;
+use screen::CONSOLE;
 use task::TASK_MANAGER;
 use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
 use util::paging::PAGE_SIZE;
@@ -102,21 +102,24 @@ fn main2(runtime: SystemTable<Runtime>) -> Result<()> {
     asmfunc::set_ds_all(0);
     asmfunc::load_tr(3 << 3);
 
+    screen::init();
     interrupt::init()?;
     acpi::init(runtime)?;
     timer::init()?;
     TASK_MANAGER.init();
-    TASK_MANAGER.register_new_task(screen::drawing_task, 1, 1 << 3, 2 << 3);
+    TASK_MANAGER.register_new_task(just_print, 1, 1 << 3, 2 << 3);
     TASK_MANAGER.register_new_task(just_print, 1, 1 << 3, 2 << 3);
     TASK_MANAGER.start();
 }
 
 fn just_print() {
+    let task_id = TASK_MANAGER.task_id();
     for i in 0u64.. {
         if i % 100 == 0 {
-            STRINGS
+            CONSOLE
+                .as_ref()
                 .lock()
-                .push_back(format!("from just_print: i={:010}", i));
+                .draw_str(format!("from just_print({}): i={:010}", task_id, i));
         }
         asmfunc::hlt();
     }

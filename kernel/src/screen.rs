@@ -4,7 +4,6 @@ use core::iter;
 
 use alloc::{collections::VecDeque, string::String};
 use util::{
-    asmfunc,
     graphics::GrayscalePrint as _,
     screen::{FrameBufferInfo, Screen},
     sync::OnceStatic,
@@ -15,10 +14,11 @@ use crate::sync::Mutex;
 /// Frame buffer information initialized at the begining of kernel.
 pub static FB_INFO: OnceStatic<FrameBufferInfo> = OnceStatic::new();
 
-pub static STRINGS: Mutex<VecDeque<String>> = Mutex::new(VecDeque::new());
+/// Console to display information.
+pub static CONSOLE: OnceStatic<Mutex<Console>> = OnceStatic::new();
 
-pub fn drawing_task() {
-    let mut console = Console {
+pub fn init() {
+    let console = Console {
         screen: Screen::new(FB_INFO.as_ref().clone()),
         lines: VecDeque::new(),
         _col: 0,
@@ -26,18 +26,11 @@ pub fn drawing_task() {
         col_num: FB_INFO.as_ref().horizontal_resolution / 8,
         row_num: FB_INFO.as_ref().vertical_resolution / 16,
     };
-
-    loop {
-        let mut strings = STRINGS.lock();
-        while let Some(s) = strings.pop_front() {
-            console.draw_str(s);
-        }
-        drop(strings);
-        asmfunc::hlt();
-    }
+    CONSOLE.init(Mutex::new(console));
 }
 
-struct Console {
+/// Provides the mean displaying information.
+pub struct Console {
     screen: Screen,
     lines: VecDeque<String>,
     _col: usize,
@@ -47,7 +40,7 @@ struct Console {
 }
 
 impl Console {
-    fn draw_str(&mut self, s: impl Into<String>) {
+    pub fn draw_str(&mut self, s: impl Into<String>) {
         let s: String = s.into();
         for line in s.lines() {
             self.draw_line(line.chars());
