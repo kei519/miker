@@ -12,7 +12,7 @@ use crate::paging;
 pub static FADT: OnceStatic<&'static Fadt> = OnceStatic::new();
 
 /// ACPI MMIO base virtual address.
-pub static MMIO_BASE: OnceStatic<u64> = OnceStatic::new();
+pub static MMIO_PHYS_BASE: OnceStatic<u64> = OnceStatic::new();
 
 /// Set [`FADT`] and [`MMIO_BASE`].
 pub fn init(runtime: SystemTable<Runtime>) -> Result<()> {
@@ -53,11 +53,7 @@ pub fn init(runtime: SystemTable<Runtime>) -> Result<()> {
     if mcfg.entries_count() == 0 {
         error!("There is no MCFG configs");
     }
-    MMIO_BASE.init(
-        paging::pyhs_to_virt(mcfg.configs()[0].base_addr)
-            .unwrap()
-            .addr,
-    );
+    MMIO_PHYS_BASE.init(mcfg.configs()[0].base_addr);
 
     Ok(())
 }
