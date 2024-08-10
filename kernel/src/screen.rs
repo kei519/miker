@@ -80,3 +80,34 @@ impl Write for Console {
         Ok(())
     }
 }
+
+#[macro_export]
+macro_rules! printk {
+    ($fmt:literal, $($args:expr),*) => {
+        {
+            use ::core::fmt::Write as _;
+            let mut console = $crate::screen::CONSOLE.as_ref().lock();
+            write!(console, $fmt, $($args),*).unwrap();
+        }
+    };
+    ($fmt:literal) => {
+        $crate::printk!($fmt,)
+    };
+}
+
+#[macro_export]
+macro_rules! printkln {
+    ($fmt:literal, $($args:expr),*) => {
+        {
+            use ::core::fmt::Write as _;
+            let mut console = $crate::screen::CONSOLE.as_ref().lock();
+            writeln!(console, $fmt, $($args),*).unwrap();
+        }
+    };
+    ($fmt:literal) => {
+        $crate::printkln!($fmt,)
+    };
+    () => {
+        $crate::printkln!("")
+    }
+}
