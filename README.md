@@ -8,6 +8,12 @@ A MICro KERnel OS for me to study.
 
     256 MiB - 512 GiB (maybe...)
 
+### Requirements for Build
+
+- Bash 4.2 or later
+
+    We use `-v` option within double bracket to make an image, so Bash 4.2 or later and export PATH properly to use it.
+
 ## Building
 
 For release build:

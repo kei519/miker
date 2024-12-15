@@ -46,7 +46,7 @@ description = "Run kernel in qemu with debug profile."
 dependencies = ["make-image", "clean-ovmf", "check-ovmf_vars"]
 workspace = false
 script = '''
-#!/bin/bash -ex
+#!/usr/bin/env bash -ex
 
 qemu-system-x86_64 \
     -m 256M \
@@ -95,7 +95,7 @@ env = { MAKE_USB = "" }
 [tasks.usb-arg-check]
 private = true
 script = '''
-#!/bin/bash -e
+#!/usr/bin/env bash -e
 
 if [ -z "$1" ]; then
     echo "You have to specify to which drive is installed files" 1>&2
@@ -108,7 +108,7 @@ private = true
 dependencies = ["member-build"]
 workspace = false
 script = '''
-#!/bin/bash -ex
+#!/usr/bin/env bash -ex
 
 if [[ -v MAKE_USB ]]; then
     DISK_IMG="$1:"
@@ -146,7 +146,7 @@ KERNEL_PATH = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${KERNEL_TARGET}/release/${K
 private = true
 workspace = false
 script = '''
-#!/bin/bash -ex
+#!/usr/bin/env bash -ex
 
 if [ ! -f "${OVMF_VARS}" ]; then
     cp "${DEFAULT_OVMF_VARS}" "${OVMF_VARS}"
@@ -166,7 +166,7 @@ fi
 description = "Unmount boot image file from mnt directory."
 workspace = false
 script = '''
-#!/bin/bash -ex
+#!/usr/bin/env bash -ex
 
 if /usr/bin/mount | grep "${MOUNT_POINT}"; then
     sudo umount "${MOUNT_POINT}"
