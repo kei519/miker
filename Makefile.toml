@@ -48,19 +48,36 @@ workspace = false
 script = '''
 #!/usr/bin/env bash -ex
 
-qemu-system-x86_64 \
-    -m 256M \
-    -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE.fd \
-    -drive if=pflash,format=raw,file="${OVMF_VARS}" \
+if [ $(uname) == "Darwin" ]; then
+    on_mac=""
+fi
+
+if [[ -v on_mac ]]; then
+    OPTIONS="-drive if=pflash,format=raw,readonly=on,file=/usr/local/share/OVMF-X64/OVMF_CODE-pure-efi.fd "
+else
+    OPTIONS="-drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE.fd "
+fi
+
+# REVIEW: We use "max" as cpu here, but we don't know this is really required.
+OPTIONS+="-drive if=pflash,format=raw,file=${OVMF_VARS} \
     -drive if=ide,index=0,media=disk,format=raw,file="${DISK_IMG}" \
     -monitor stdio \
-    -enable-kvm \
     -machine q35 \
-    -cpu host \
+    -cpu max \
     -smp 4 \
     -device nec-usb-xhci,id=xhci \
+    -m 256M \
     -s \
     ${@}
+"
+
+if [[ -z on_mac ]]; then
+    OPTIONS+="-enable-kvm"
+fi
+
+unset on_mac
+
+qemu-system-x86_64 ${OPTIONS}
 '''
 
 [tasks.release-run]
@@ -78,6 +95,7 @@ description = "Make boot image file with release profile."
 run_task = { name = ["make-image-release-without-umount", "umount"], fork = true, cleanup_task = "umount" }
 workspace = false
 
+# FIXME: usb and release-usb tasks don't run on MacOS and non-WSL Linux.
 [tasks.usb]
 description = "Make a USB media a boot device with debug profile."
 dependencies = ["usb-arg-check"]
@@ -121,7 +139,11 @@ else
     if [ ! -d "${MOUNT_POINT}" ]; then
         mkdir -p "${MOUNT_POINT}"
     fi
-    sudo mount -o uid="${UID}",gid=$(id -g $(whoami)) "${DISK_IMG}" "${MOUNT_POINT}"
+    if [ $(uname) = "Darwin" ]; then
+        hdiutil attach -mountpoint "${MOUNT_POINT}" "${DISK_IMG}"
+    else
+        sudo mount -o uid="${UID}",gid=$(id -g $(whoami)) "${DISK_IMG}" "${MOUNT_POINT}"
+    fi
 fi
 
 LOADER_DEPLOY_PATH="${MOUNT_POINT}/EFI/BOOT/BOOTx64.EFI"
@@ -168,7 +190,14 @@ workspace = false
 script = '''
 #!/usr/bin/env bash -ex
 
-if /usr/bin/mount | grep "${MOUNT_POINT}"; then
-    sudo umount "${MOUNT_POINT}"
+if [ $(uname) = "Darwin" ]; then
+    # TODO: This can be better?
+    if hdiutil info | grep "${MOUNT_POINT}"; then
+        hdiutil detach "${MOUNT_POINT}"
+    fi
+else
+    if /usr/bin/mount | grep "${MOUNT_POINT}"; then
+        sudo umount "${MOUNT_POINT}"
+    fi
 fi
 '''
