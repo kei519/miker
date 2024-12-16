@@ -1,6 +1,6 @@
 //! Provides PCI supports.
 
-use core::{cell::UnsafeCell, fmt::Debug};
+use core::cell::UnsafeCell;
 
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
