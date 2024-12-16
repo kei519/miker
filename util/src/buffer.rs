@@ -24,7 +24,7 @@ impl<'buf> StrBuf<'buf> {
     }
 }
 
-impl<'buf> Write for StrBuf<'buf> {
+impl Write for StrBuf<'_> {
     /// When trying to write string whose length runs over the inner buffer, writes string within
     /// the limit and returns an [Error].
     fn write_str(&mut self, s: &str) -> core::fmt::Result {

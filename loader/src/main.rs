@@ -90,7 +90,7 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
     let file_info: &FileInfo = kernel
         .get_info(&mut buf)
         .map_err(|_| error!(Error::new(Status::BUFFER_TOO_SMALL, ())))?;
-    let num_tmp_pages = (file_info.file_size() as usize + PAGE_SIZE - 1) / PAGE_SIZE;
+    let num_tmp_pages = (file_info.file_size() as usize).div_ceil(PAGE_SIZE);
     let tmp_addr = st
         .boot_services()
         .allocate_pages(
@@ -132,7 +132,7 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
     }
 
     // Allocate memory for deploying the kernel at its proper address.
-    let num_pages = (end - start + PAGE_SIZE as u64 - 1) / PAGE_SIZE as u64;
+    let num_pages = (end - start).div_ceil(PAGE_SIZE as _);
     let kernel_virt_head = start & !0xfff;
     let kernel_phys_head = st
         .boot_services()
@@ -162,7 +162,7 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
             // Set page tables.
             // Required page size should be calculated from a start of a page.
             let offset = phdr.vaddr & 0xfff;
-            let mut num_pages = (offset + phdr.memsz + PAGE_SIZE as u64 - 1) / PAGE_SIZE as u64;
+            let mut num_pages = (offset + phdr.memsz).div_ceil(PAGE_SIZE as _);
             let mut paddr = phaddr & !0xfff;
             let mut vaddr = phdr.vaddr & !0xfff;
             while num_pages > 0 {

@@ -187,7 +187,7 @@ pub struct MutexGuard<'this, T> {
     queue_lock: &'this AtomicBool,
 }
 
-impl<'this, T> Drop for MutexGuard<'this, T> {
+impl<T> Drop for MutexGuard<'_, T> {
     fn drop(&mut self) {
         self.lock.store(false, Release);
         while self
@@ -204,7 +204,7 @@ impl<'this, T> Drop for MutexGuard<'this, T> {
     }
 }
 
-impl<'this, T> Deref for MutexGuard<'this, T> {
+impl<T> Deref for MutexGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -212,19 +212,19 @@ impl<'this, T> Deref for MutexGuard<'this, T> {
     }
 }
 
-impl<'this, T> DerefMut for MutexGuard<'this, T> {
+impl<T> DerefMut for MutexGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.data
     }
 }
 
-impl<'this, T: Debug> Debug for MutexGuard<'this, T> {
+impl<T: Debug> Debug for MutexGuard<'_, T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         Debug::fmt(&self.data, f)
     }
 }
 
-impl<'this, T: Display> Display for MutexGuard<'this, T> {
+impl<T: Display> Display for MutexGuard<'_, T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         Display::fmt(self.data, f)
     }

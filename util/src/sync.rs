@@ -237,7 +237,7 @@ pub struct InterruptFreeMutexGuard<'this, T> {
     prev_if: &'this AtomicBool,
 }
 
-impl<'this, T> Deref for InterruptFreeMutexGuard<'this, T> {
+impl<T> Deref for InterruptFreeMutexGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -245,13 +245,13 @@ impl<'this, T> Deref for InterruptFreeMutexGuard<'this, T> {
     }
 }
 
-impl<'this, T> DerefMut for InterruptFreeMutexGuard<'this, T> {
+impl<T> DerefMut for InterruptFreeMutexGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.data
     }
 }
 
-impl<'this, T> Drop for InterruptFreeMutexGuard<'this, T> {
+impl<T> Drop for InterruptFreeMutexGuard<'_, T> {
     fn drop(&mut self) {
         self.locker.store(false, Release);
         if self.prev_if.load(Relaxed) {
