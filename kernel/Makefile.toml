@@ -33,8 +33,8 @@ fi
 
 [tasks.check]
 command = "cargo"
-args = ["check"]
+args = ["check", "--target=${KERNEL_TARGET}"]
 
 [tasks.clippy]
 command = "cargo"
-args = ["clippy"]
+args = ["clippy", "--target=${KERNEL_TARGET}"]

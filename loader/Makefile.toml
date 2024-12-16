@@ -14,8 +14,8 @@ args = ["build", "--release", "--target=${LOADER_TARGET}"]
 
 [tasks.check]
 command = "cargo"
-args = ["check"]
+args = ["check", "--target=${LOADER_TARGET}"]
 
 [tasks.clippy]
 command = "cargo"
-args = ["clippy"]
+args = ["clippy", "--target=${LOADER_TARGET}"]
