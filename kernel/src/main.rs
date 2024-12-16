@@ -20,7 +20,7 @@ use alloc::format;
 use task::TASK_MANAGER;
 use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
 use util::paging::PAGE_SIZE;
-use util::pci::ConfigSpace;
+use util::pci::ConfigSpaces;
 use util::{
     asmfunc,
     buffer::StrBuf,
@@ -107,21 +107,19 @@ fn main2(runtime: SystemTable<Runtime>) -> Result<()> {
     interrupt::init()?;
     acpi::init(runtime)?;
 
-    for bus in 0..256 {
-        for dev in 0..32 {
-            for func in 0..8 {
-                let offset = bus << 16 | dev << 11 | func << 8;
-                let config = unsafe { ConfigSpace::from_ptr((MMIO_PHYS_BASE.get() + offset) as _) };
-                if ![0, 0xffff].contains(&config.vendor_id) {
-                    printkln!(
-                        "{:02x}:{:02x}.{:02x}",
-                        config.base_class,
-                        config.sub_class,
-                        config.interface
-                    );
-                }
-            }
-        }
+    let pci_configs = unsafe { ConfigSpaces::from_base_ptr(MMIO_PHYS_BASE.get() as _) };
+    for config in pci_configs.iter() {
+        printkln!(
+            "{:02x}:{:02x}.{:02x}",
+            config.base_class,
+            config.sub_class,
+            config.interface
+        );
+    }
+
+    printkln!("\nAHCI interfaces:");
+    for (bus, dev, func) in pci_configs.match_class(0x01, 0x06, 0x01) {
+        printkln!("{bus:02x}.{dev:02x}.{func:02x}");
     }
 
     timer::init()?;
