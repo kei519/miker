@@ -2,6 +2,9 @@
 
 use core::{cell::UnsafeCell, fmt::Debug};
 
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
+
 use crate::{bitfield::BitField, paging::ADDRESS_CONVERTER};
 
 /// Represetns a PCI configuration space.
@@ -113,6 +116,120 @@ impl ConfigSpace {
             Some(self.cap_ptr & !0b11)
         } else {
             None
+        }
+    }
+}
+
+/// Represetns a collection of all PCI configuration spaces.
+#[derive(Debug, Clone, Copy)]
+pub struct ConfigSpaces {
+    base: u64,
+}
+
+impl ConfigSpaces {
+    /// Returns new [ConfigSpaces].
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be non-null and properly aligned.
+    pub unsafe fn from_base_ptr(base: *mut u8) -> Self {
+        Self { base: base as _ }
+    }
+
+    /// Returns the shared reference of [ConfigSpace] if specified `bus`, `dev` and `func` is
+    /// valid.
+    pub fn get(&self, bus: u8, dev: u8, func: u8) -> Option<&'static ConfigSpace> {
+        if !(0..32).contains(&dev) || !(0..8).contains(&func) {
+            return None;
+        }
+
+        let offset = ((bus as u64) << 16) + ((dev as u64) << 11) + ((func as u64) << 8);
+        let config = unsafe { ConfigSpace::from_ptr((self.base + offset) as _) };
+        (![0x0000, 0xffff].contains(&config.vendor_id)).then_some(config)
+    }
+
+    /// Returns the exclusive reference of [ConfigSpace] if specified `bus`, `dev` and `func` is
+    /// valid.
+    pub fn get_mut(&mut self, bus: u8, dev: u8, func: u8) -> Option<&'static mut ConfigSpace> {
+        if !(0..32).contains(&dev) || !(0..8).contains(&func) {
+            return None;
+        }
+
+        let offset = ((bus as u64) << 16) + ((dev as u64) << 11) + ((func as u64) << 8);
+        let config = unsafe { ConfigSpace::from_ptr((self.base + offset) as _) };
+        (![0x0000, 0xffff].contains(&config.vendor_id)).then_some(config)
+    }
+
+    /// Returns `(bus, device, function)` whose classes match the specified one.
+    #[cfg(feature = "alloc")]
+    pub fn match_class(&self, base: u8, sub: u8, interface: u8) -> Vec<(u8, u8, u8)> {
+        self.iter()
+            .filter(|cfg| {
+                cfg.base_class == base && cfg.sub_class == sub && cfg.interface == interface
+            })
+            .map(|cfg| {
+                let offset = (cfg as *const _) as u64 - self.base;
+                (
+                    offset.get_bits(16..) as _,
+                    offset.get_bits(11..16) as _,
+                    offset.get_bits(8..11) as _,
+                )
+            })
+            .collect()
+    }
+
+    /// Returns [ConfigSpacesIter] to iterate all configuration spaces.
+    pub fn iter(&self) -> ConfigSpacesIter {
+        ConfigSpacesIter {
+            confs: *self,
+            bus: 0,
+            dev: 0,
+            func: 0,
+            done: false,
+        }
+    }
+}
+
+/// Iterator for all PCI configuration spaces.
+#[derive(Debug, Clone)]
+pub struct ConfigSpacesIter {
+    confs: ConfigSpaces,
+    bus: u8,
+    dev: u8,
+    func: u8,
+    done: bool,
+}
+
+impl Iterator for ConfigSpacesIter {
+    type Item = &'static ConfigSpace;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if self.done {
+                return None;
+            }
+
+            let config = self.confs.get(self.bus, self.dev, self.func);
+
+            self.func += 1;
+            if self.func >= 8 {
+                self.func = 0;
+                self.dev += 1;
+            }
+            if self.dev >= 32 {
+                self.dev = 0;
+                self.bus = match self.bus.checked_add(1) {
+                    Some(val) => val,
+                    None => {
+                        self.done = true;
+                        self.bus
+                    }
+                };
+            }
+
+            if let Some(config) = config {
+                return Some(config);
+            }
         }
     }
 }
