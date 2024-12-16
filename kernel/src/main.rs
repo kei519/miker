@@ -4,14 +4,7 @@
 #![deny(improper_ctypes)]
 #![deny(improper_ctypes_definitions)]
 
-mod acpi;
-mod interrupt;
-mod memmap;
-mod paging;
-mod screen;
-mod sync;
-mod task;
-mod timer;
+use kernel::*;
 
 use core::fmt::Write as _;
 
@@ -32,8 +25,6 @@ use util::{
 };
 
 use {memmap::PAGE_MAP, screen::FB_INFO};
-
-extern crate alloc;
 
 #[repr(align(4096))]
 #[allow(dead_code)]
