@@ -2,18 +2,10 @@
 
 use core::fmt::{Debug, Display};
 
-#[cfg(feature = "alloc")]
-use alloc::collections::BTreeMap;
-#[cfg(feature = "alloc")]
-use core::{
-    mem,
-    ops::{Deref, DerefMut},
-};
-
 use crate::{bitfield::BitField, paging::ADDRESS_CONVERTER};
 
 #[cfg(feature = "alloc")]
-use crate::sync::InterruptFreeMutex;
+pub use _alloc::*;
 
 /// Represents BDF (bus, device and function) in PCI configuration spaces.
 #[derive(Clone, Copy, PartialOrd, Ord, PartialEq, Eq, Hash)]
@@ -229,200 +221,207 @@ impl ConfigSpace {
 }
 
 #[cfg(feature = "alloc")]
-/// Provides access to multi-core safe PCI configuration spaces.
-pub struct ConfigSpaces {
-    base: *mut ConfigSpace,
-    used_map: InterruptFreeMutex<BTreeMap<u16, bool>>,
-}
+mod _alloc {
+    use alloc::collections::BTreeMap;
+    use core::{
+        mem,
+        ops::{Deref, DerefMut},
+    };
 
-#[cfg(feature = "alloc")]
-impl ConfigSpaces {
-    /// Constructs new [CfgSpaces] from the physical address to the head of [ConfigSpace],
-    /// `phys_addr`.
-    ///
-    /// # Panic
-    ///
-    /// If there is no map from physical address `phys_addr` to virtual one, it causes panic.
-    ///
-    /// # Safety
-    ///
-    /// `phys_addr` must be non-null and properly aligned.
-    pub unsafe fn from_ptr(phys_addr: *mut u8) -> Self {
-        Self {
-            base: ADDRESS_CONVERTER
-                .as_ref()
-                .get_ptr(phys_addr as _)
-                .unwrap()
-                .as_ptr(),
-            used_map: InterruptFreeMutex::new(BTreeMap::new()),
-        }
+    use crate::sync::InterruptFreeMutex;
+
+    use super::*;
+
+    /// Provides access to multi-core safe PCI configuration spaces.
+    pub struct ConfigSpaces {
+        base: *mut ConfigSpace,
+        used_map: InterruptFreeMutex<BTreeMap<u16, bool>>,
     }
 
-    /// Returns exclusive access to the PCI configuration space specified by `bus`, `dev` and
-    /// `func`, if a device is connected to the specified BDF and noone owns it.
-    pub fn get_config_space(&self, bdf: Bdf) -> ConfigSpaceStatus<'_> {
-        let offset = bdf.into();
-
-        let mut used_map = self.used_map.lock();
-        match used_map.get_mut(&offset) {
-            Some(true) => ConfigSpaceStatus::Used,
-            Some(false) => {
-                used_map.insert(offset, true);
-                ConfigSpaceStatus::Usable(ConfigSpaceLock {
-                    used_map: &self.used_map,
-                    offset,
-                    config: unsafe { &mut *(self.base.add(offset as _)) },
-                })
+    impl ConfigSpaces {
+        /// Constructs new [CfgSpaces] from the physical address to the head of [ConfigSpace],
+        /// `phys_addr`.
+        ///
+        /// # Panic
+        ///
+        /// If there is no map from physical address `phys_addr` to virtual one, it causes panic.
+        ///
+        /// # Safety
+        ///
+        /// `phys_addr` must be non-null and properly aligned.
+        pub unsafe fn from_ptr(phys_addr: *mut u8) -> Self {
+            Self {
+                base: ADDRESS_CONVERTER
+                    .as_ref()
+                    .get_ptr(phys_addr as _)
+                    .unwrap()
+                    .as_ptr(),
+                used_map: InterruptFreeMutex::new(BTreeMap::new()),
             }
-            None => {
-                if pci_is_enabled(unsafe {
-                    self.base
-                        .byte_add((offset as usize) << 8)
-                        .cast::<u16>()
-                        .read()
-                }) {
+        }
+
+        /// Returns exclusive access to the PCI configuration space specified by `bus`, `dev` and
+        /// `func`, if a device is connected to the specified BDF and noone owns it.
+        pub fn get_config_space(&self, bdf: Bdf) -> ConfigSpaceStatus<'_> {
+            let offset = bdf.into();
+
+            let mut used_map = self.used_map.lock();
+            match used_map.get_mut(&offset) {
+                Some(true) => ConfigSpaceStatus::Used,
+                Some(false) => {
                     used_map.insert(offset, true);
                     ConfigSpaceStatus::Usable(ConfigSpaceLock {
                         used_map: &self.used_map,
                         offset,
-                        config: unsafe { &mut *self.base.add(offset as _) },
+                        config: unsafe { &mut *(self.base.add(offset as _)) },
                     })
-                } else {
-                    ConfigSpaceStatus::NotConnected
+                }
+                None => {
+                    if pci_is_enabled(unsafe {
+                        self.base
+                            .byte_add((offset as usize) << 8)
+                            .cast::<u16>()
+                            .read()
+                    }) {
+                        used_map.insert(offset, true);
+                        ConfigSpaceStatus::Usable(ConfigSpaceLock {
+                            used_map: &self.used_map,
+                            offset,
+                            config: unsafe { &mut *self.base.add(offset as _) },
+                        })
+                    } else {
+                        ConfigSpaceStatus::NotConnected
+                    }
+                }
+            }
+        }
+
+        /// Returns the collection of the PCI configuration spaces.
+        pub fn valid_bfds_and_classes(&self) -> BfdsAndClasses {
+            BfdsAndClasses {
+                configs: self,
+                bus: 0,
+                dev: 0,
+                func: 0,
+                done: false,
+            }
+        }
+    }
+
+    /// Represents the status of a PCI configuration space.
+    pub enum ConfigSpaceStatus<'a> {
+        /// You have access to the configuration space because noone is using it.
+        Usable(ConfigSpaceLock<'a>),
+        /// You cannot take the ownership of the configuration space because someone is using.
+        Used,
+        /// No PCI device is connected to the specified bus, device and fucntion.
+        NotConnected,
+    }
+
+    /// Provides exclusive access to a PCI space configuration.
+    pub struct ConfigSpaceLock<'a> {
+        used_map: &'a InterruptFreeMutex<BTreeMap<u16, bool>>,
+        offset: u16,
+        config: &'a mut ConfigSpace,
+    }
+
+    impl Deref for ConfigSpaceLock<'_> {
+        type Target = ConfigSpace;
+
+        fn deref(&self) -> &Self::Target {
+            self.config
+        }
+    }
+
+    impl DerefMut for ConfigSpaceLock<'_> {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            self.config
+        }
+    }
+
+    impl Drop for ConfigSpaceLock<'_> {
+        fn drop(&mut self) {
+            *self.used_map.lock().get_mut(&self.offset).unwrap() = false;
+        }
+    }
+
+    /// Collects up all valid PCI configuration spaces.
+    pub struct BfdsAndClasses<'a> {
+        configs: &'a ConfigSpaces,
+        bus: u8,
+        dev: u8,
+        func: u8,
+        done: bool,
+    }
+
+    impl Iterator for BfdsAndClasses<'_> {
+        type Item = (PciClass, Bdf);
+
+        fn next(&mut self) -> Option<Self::Item> {
+            loop {
+                if self.done {
+                    return None;
+                }
+
+                let offset: u16 = Bdf::new(self.bus, self.dev, self.func).into();
+                // Safety:
+                // - max(offset) = u16::MAX so max(offset * size_of::<ConfigSpace>()) < isize::MAX.
+                // - `ConfigSpaces` is the header of the collection of `ConfigSpace`.
+                let ptr = unsafe { self.configs.base.add(offset as _) }.cast::<u8>();
+
+                self.func += 1;
+                if self.func >= 8 {
+                    self.func = 0;
+                    self.dev += 1;
+                }
+                if self.dev >= 32 {
+                    self.dev = 0;
+                    self.bus = match self.bus.checked_add(1) {
+                        Some(val) => val,
+                        None => {
+                            self.done = true;
+                            self.bus
+                        }
+                    };
+                }
+
+                // Safety:
+                // - `ptr` must be valid.
+                //  - `ptr` is not null because of its construction.
+                //  - `ptr` is dereferenceable because its space is allocated by UEFI.
+                //  - All accesses to `ptr` aer atomic because Vendor ID in a PCI configuration space
+                //    is read-only.
+                //  - Casting result is valid because its value is copied (and it has static lifetime).
+                //
+                // - `ptr` must be properly aligned.
+                //  `ptr` is 4-byte aligned because of ist construction.
+                //
+                // - `ptr` must point to a properly initialized value.
+                //  any value is valid for `u16`.
+                if pci_is_enabled(unsafe { ptr.cast::<u16>().read() }) {
+                    // Safety: same as above.
+                    return Some((
+                        unsafe {
+                            PciClass {
+                                base_class: ptr
+                                    .byte_add(mem::offset_of!(ConfigSpace, base_class))
+                                    .read(),
+                                sub_class: ptr
+                                    .byte_add(mem::offset_of!(ConfigSpace, sub_class))
+                                    .read(),
+                                interface: ptr
+                                    .byte_add(mem::offset_of!(ConfigSpace, interface))
+                                    .read(),
+                            }
+                        },
+                        offset.into(),
+                    ));
                 }
             }
         }
     }
 
-    /// Returns the collection of the PCI configuration spaces.
-    pub fn valid_bfds_and_classes(&self) -> BfdsAndClasses {
-        BfdsAndClasses {
-            configs: self,
-            bus: 0,
-            dev: 0,
-            func: 0,
-            done: false,
-        }
+    fn pci_is_enabled(vendor_id: u16) -> bool {
+        ![0, 0xffff].contains(&vendor_id)
     }
-}
-
-/// Represents the status of a PCI configuration space.
-#[cfg(feature = "alloc")]
-pub enum ConfigSpaceStatus<'a> {
-    /// You have access to the configuration space because noone is using it.
-    Usable(ConfigSpaceLock<'a>),
-    /// You cannot take the ownership of the configuration space because someone is using.
-    Used,
-    /// No PCI device is connected to the specified bus, device and fucntion.
-    NotConnected,
-}
-
-/// Provides exclusive access to a PCI space configuration.
-#[cfg(feature = "alloc")]
-pub struct ConfigSpaceLock<'a> {
-    used_map: &'a InterruptFreeMutex<BTreeMap<u16, bool>>,
-    offset: u16,
-    config: &'a mut ConfigSpace,
-}
-
-#[cfg(feature = "alloc")]
-impl Deref for ConfigSpaceLock<'_> {
-    type Target = ConfigSpace;
-
-    fn deref(&self) -> &Self::Target {
-        self.config
-    }
-}
-
-#[cfg(feature = "alloc")]
-impl DerefMut for ConfigSpaceLock<'_> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.config
-    }
-}
-
-#[cfg(feature = "alloc")]
-impl Drop for ConfigSpaceLock<'_> {
-    fn drop(&mut self) {
-        *self.used_map.lock().get_mut(&self.offset).unwrap() = false;
-    }
-}
-
-/// Collects up all valid PCI configuration spaces.
-#[cfg(feature = "alloc")]
-pub struct BfdsAndClasses<'a> {
-    configs: &'a ConfigSpaces,
-    bus: u8,
-    dev: u8,
-    func: u8,
-    done: bool,
-}
-
-#[cfg(feature = "alloc")]
-impl Iterator for BfdsAndClasses<'_> {
-    type Item = (PciClass, Bdf);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if self.done {
-                return None;
-            }
-
-            let offset: u16 = Bdf::new(self.bus, self.dev, self.func).into();
-            // Safety:
-            // - max(offset) = u16::MAX so max(offset * size_of::<ConfigSpace>()) < isize::MAX.
-            // - `ConfigSpaces` is the header of the collection of `ConfigSpace`.
-            let ptr = unsafe { self.configs.base.add(offset as _) }.cast::<u8>();
-
-            self.func += 1;
-            if self.func >= 8 {
-                self.func = 0;
-                self.dev += 1;
-            }
-            if self.dev >= 32 {
-                self.dev = 0;
-                self.bus = match self.bus.checked_add(1) {
-                    Some(val) => val,
-                    None => {
-                        self.done = true;
-                        self.bus
-                    }
-                };
-            }
-
-            // Safety:
-            // - `ptr` must be valid.
-            //  - `ptr` is not null because of its construction.
-            //  - `ptr` is dereferenceable because its space is allocated by UEFI.
-            //  - All accesses to `ptr` aer atomic because Vendor ID in a PCI configuration space
-            //    is read-only.
-            //  - Casting result is valid because its value is copied (and it has static lifetime).
-            //
-            // - `ptr` must be properly aligned.
-            //  `ptr` is 4-byte aligned because of ist construction.
-            //
-            // - `ptr` must point to a properly initialized value.
-            //  any value is valid for `u16`.
-            if pci_is_enabled(unsafe { ptr.cast::<u16>().read() }) {
-                // Safety: same as above.
-                return Some((
-                    unsafe {
-                        PciClass {
-                            base_class: ptr
-                                .byte_add(mem::offset_of!(ConfigSpace, base_class))
-                                .read(),
-                            sub_class: ptr.byte_add(mem::offset_of!(ConfigSpace, sub_class)).read(),
-                            interface: ptr.byte_add(mem::offset_of!(ConfigSpace, interface)).read(),
-                        }
-                    },
-                    offset.into(),
-                ));
-            }
-        }
-    }
-}
-
-#[cfg(feature = "alloc")]
-fn pci_is_enabled(vendor_id: u16) -> bool {
-    ![0, 0xffff].contains(&vendor_id)
 }
