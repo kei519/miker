@@ -164,6 +164,19 @@ impl<T> AsRef<T> for OnceStatic<T> {
     }
 }
 
+impl<T> Deref for OnceStatic<T> {
+    type Target = T;
+
+    /// Dereferences the value.
+    ///
+    /// # Panics
+    ///
+    /// May panic if it is not initialzed.
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
+    }
+}
+
 /// Provides a mutex lock with disabling interrupts until release the lock.
 #[derive(Debug)]
 pub struct InterruptFreeMutex<T> {
