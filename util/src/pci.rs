@@ -238,6 +238,12 @@ mod _alloc {
         used_map: InterruptFreeMutex<BTreeMap<u16, bool>>,
     }
 
+    // Safety: ConfigSpaces.used_map is Send and Sync, so we have to consider whether
+    //         ConfigSpaces.base is Send and Sync. It is accessed via the ConfigSpaces and its
+    //         exclusiveness is controlled by ConfigSpaces.used_map that is Send and Sync.
+    unsafe impl Send for ConfigSpaces {}
+    unsafe impl Sync for ConfigSpaces {}
+
     impl ConfigSpaces {
         /// Constructs new [CfgSpaces] from the physical address to the head of [ConfigSpace],
         /// `phys_addr`.
