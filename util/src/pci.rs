@@ -1,6 +1,10 @@
 //! Provides PCI supports.
 
-use core::fmt::{Debug, Display};
+use core::{
+    fmt::{Debug, Display},
+    marker::PhantomData,
+    mem,
+};
 
 use crate::{bitfield::BitField, paging::ADDRESS_CONVERTER};
 
@@ -218,6 +222,71 @@ impl ConfigSpace {
             None
         }
     }
+
+    /// Returns the collection of all capabilities that the configuration space has.
+    pub fn raw_capabilities(&mut self) -> RawCapabilities<'_> {
+        let cap_ptr = self.cap_ptr().unwrap_or(0);
+        RawCapabilities {
+            config: self,
+            next_ptr: cap_ptr,
+        }
+    }
+}
+
+/// Represents a capability in a configuration space, but it data is raw pointer.
+pub struct RawCapability<'a> {
+    /// ID of the capability.
+    pub cap_id: u8,
+
+    /// Pointer to the next capability.
+    ///
+    /// If it is zero, it means it has no next capability.
+    pub next: u8,
+
+    /// Raw data of the capability whose structure depends of its ID.
+    pub raw_data: *mut u8,
+
+    _lifetime: PhantomData<&'a ()>,
+}
+
+impl Debug for RawCapability<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("RawCapability")
+            .field("cap_id", &self.cap_id)
+            .field("next", &self.next)
+            .finish_non_exhaustive()
+    }
+}
+
+/// Collection of [RawCapability]\(ies).
+pub struct RawCapabilities<'a> {
+    config: &'a mut ConfigSpace,
+    next_ptr: u8,
+}
+
+impl<'a> Iterator for RawCapabilities<'a> {
+    type Item = RawCapability<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.next_ptr == 0 {
+            return None;
+        }
+
+        unsafe {
+            let ptr: *mut u8 = (&raw mut *self.config).cast();
+
+            let mut next_ptr = ptr.add(self.next_ptr as usize + 1).read() & !0b11;
+            mem::swap(&mut self.next_ptr, &mut next_ptr);
+            let next_ptr = next_ptr as usize;
+
+            Some(RawCapability {
+                cap_id: ptr.add(next_ptr).read(),
+                next: self.next_ptr,
+                raw_data: ptr.add(next_ptr + 2),
+                _lifetime: PhantomData,
+            })
+        }
+    }
 }
 
 #[cfg(feature = "alloc")]
@@ -322,6 +391,23 @@ mod _alloc {
         Used,
         /// No PCI device is connected to the specified bus, device and fucntion.
         NotConnected,
+    }
+
+    impl<'a> ConfigSpaceStatus<'a> {
+        /// Returns the contained [Usable][Usable] value, consuming the `self` value.
+        ///
+        /// # Panics
+        ///
+        /// Panics if the `self` value is not [Usable][Usable].
+        ///
+        /// [Usable]: ConfigSpaceStatus::Usable
+        pub fn unwrap(self) -> ConfigSpaceLock<'a> {
+            if let Self::Usable(lock) = self {
+                lock
+            } else {
+                panic!("called `ConfigSpaceStatus::unwrap()` on a non-usable value")
+            }
+        }
     }
 
     /// Provides exclusive access to a PCI space configuration.
