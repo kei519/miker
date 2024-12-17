@@ -11,7 +11,7 @@ use crate::paging;
 
 pub static FADT: OnceStatic<&'static Fadt> = OnceStatic::new();
 
-/// ACPI MMIO base virtual address.
+/// ACPI MMIO base physical address.
 pub static MMIO_PHYS_BASE: OnceStatic<u64> = OnceStatic::new();
 
 /// Set [`FADT`] and [`MMIO_PHYS_BASE`].
