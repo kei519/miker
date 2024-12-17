@@ -98,19 +98,10 @@ fn main2(runtime: SystemTable<Runtime>) -> Result<()> {
     interrupt::init()?;
     acpi::init(runtime)?;
 
-    let pci_configs = unsafe { ConfigSpaces::from_base_ptr(MMIO_PHYS_BASE.get() as _) };
-    for config in pci_configs.iter() {
-        printkln!(
-            "{:02x}:{:02x}.{:02x}",
-            config.base_class,
-            config.sub_class,
-            config.interface
-        );
-    }
-
-    printkln!("\nAHCI interfaces:");
-    for (bus, dev, func) in pci_configs.match_class(0x01, 0x06, 0x01) {
-        printkln!("{bus:02x}.{dev:02x}.{func:02x}");
+    // Safety: It's ok because passed by UEFI.
+    let pci_configs = unsafe { ConfigSpaces::from_ptr(MMIO_PHYS_BASE.get() as _) };
+    for (class, bdf) in pci_configs.valid_bfds_and_classes() {
+        printkln!("{class:02x?}: {bdf}");
     }
 
     timer::init()?;
