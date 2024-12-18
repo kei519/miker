@@ -17,6 +17,7 @@ pub mod asmfunc;
 pub mod bitfield;
 pub mod buffer;
 pub mod descriptor;
+pub mod driver;
 pub mod elf;
 pub mod graphics;
 pub mod interrupt;
