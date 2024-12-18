@@ -233,7 +233,7 @@ impl ConfigSpace {
     }
 }
 
-/// Represents a capability in a configuration space, but it data is raw pointer.
+/// Represents a capability in a configuration space, but its data is raw pointer.
 pub struct RawCapability<'a> {
     /// ID of the capability.
     pub cap_id: u8,
