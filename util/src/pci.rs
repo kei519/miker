@@ -259,6 +259,8 @@ pub struct RawCapability<'a> {
 pub enum Capability<'a> {
     /// Message Signaled Interrupt capability.
     Msi(MsiCapability<'a>),
+    /// Serial ATA Capability.
+    Sata(SataCapability<'a>),
     /// Not supported.
     Unknown(RawCapability<'a>),
 }
@@ -267,7 +269,8 @@ impl<'a> From<RawCapability<'a>> for Capability<'a> {
     fn from(value: RawCapability<'a>) -> Self {
         // WARNING: We don't know whether id depends on a class.
         match value.cap_id {
-            5 => Self::Msi(MsiCapability(value.raw_data, value._lifetime)),
+            0x05 => Self::Msi(MsiCapability(value.raw_data, value._lifetime)),
+            0x12 => Self::Sata(SataCapability(value.raw_data, value._lifetime)),
             _ => Self::Unknown(value),
         }
     }
@@ -432,6 +435,65 @@ impl Debug for RawCapability<'_> {
             .field("cap_id", &self.cap_id)
             .field("next", &self.next)
             .finish_non_exhaustive()
+    }
+}
+
+/// Represents a SATA Capability, which is used for the Index-Data Pair mechanism.
+//
+// TODO: Add a notation to expalin what Index-Data Pair is (, described in SATA spec section
+// 10.14).
+pub struct SataCapability<'a>(*mut u8, PhantomData<&'a ()>);
+
+impl SataCapability<'_> {
+    fn revision(&self) -> u8 {
+        // Safety: it is allocated by UEFI.
+        unsafe { self.0.read() }
+    }
+
+    /// Retruns the major revision of the SATA Capability.
+    pub fn major(&self) -> u8 {
+        self.revision().get_bits(4..)
+    }
+
+    /// Retruns the minor revision of the SATA Capability.
+    pub fn minor(&self) -> u8 {
+        self.revision().get_bits(..4)
+    }
+
+    /// Capability Register 1.
+    fn cr1(&self) -> u32 {
+        // Safety:
+        // * allocated by UEFI
+        // * properly aligned because self.0 modulo 4 is 2.
+        unsafe { self.0.add(2).cast::<u32>().read() }
+    }
+
+    /// Returns index of the bar containing the Index-Data Pair.
+    ///
+    /// Returns `11` when Index-Data Pair is implemented in Dwords directly in Serial ATA
+    /// Capability (following SATACR1).
+    pub fn bar_loc(&self) -> u8 {
+        // BAR Location in a SATA Capability indicates the absolute PCI Configuration Register
+        // address in Dword (4-byte) granularity. Because it is difficult to use directly, we
+        // convert it to the index
+        (self.cr1().get_bits(..4) - 4) as _
+    }
+
+    /// Returns the offset into the BAR where the Index-Data Pair are located.
+    pub fn bar_off(&self) -> u64 {
+        // In Dword granularity.
+        (self.cr1().get_bits(4..24) * 4) as _
+    }
+}
+
+impl Debug for SataCapability<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("SataCapability")
+            .field("major", &self.major())
+            .field("minor", &self.minor())
+            .field("bar_loc", &self.bar_loc())
+            .field("bar_off", &self.bar_off())
+            .finish()
     }
 }
 

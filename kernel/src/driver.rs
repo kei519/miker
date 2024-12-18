@@ -39,3 +39,13 @@ pub fn init() -> Result<()> {
     }
     Ok(())
 }
+
+// pub struct Ahci(pub &'static mut ConfigSpace);
+
+// impl Ahci {
+//     pub fn new(config: &'static mut ConfigSpace) -> Self {
+//         Self(config)
+//     }
+
+//     pub
+// }
