@@ -1,6 +1,6 @@
 //! Library for drivers.
 
-use bitfield::bitfield;
+use modular_bitfield::{bitfield, prelude::*};
 
 use crate::{bitfield::BitField as _, paging::ADDRESS_CONVERTER, pci::ConfigSpace};
 
@@ -46,7 +46,7 @@ pub struct GenericHostControl {
     /// Host Capabilities.
     pub cap: HbaCap,
     /// Global Host Control.
-    pub ghc: GlobaHbaControl,
+    pub ghc: GlobalHbaControl,
     /// Interrupt Status.
     pub is: u32,
     /// Ports Implemented.
@@ -67,7 +67,29 @@ pub struct GenericHostControl {
     pub bohc: u32,
 }
 
-bitfield! {
+// #[bitfield]
+// #[repr(u32)]
+// #[derive(Debug)]
+// pub struct HbaCap {
+//     /// Number of Ports (NP).
+//     ///
+//     /// 0's based value indicating the maximum number of ports supported by the HBA silicon. A
+//     /// maximum of 32 ports can be supported.
+//     #[skip(setters)]
+//     np: B5,
+
+//     /// Supports External SATA (SXS).
+//     ///
+//     /// When set, indicates that the HBA has one or more Serial ATA ports that has a signal only
+//     /// connector that is externally accessible (e.g. eSATA connector).
+//     #[skip(setters)]
+//     sxs: bool,
+
+//     #[skip]
+//     __: B26,
+// }
+
+bitfield::bitfield! {
     /// Indicates basic capabilities of the HBA to driver software.
     pub struct HbaCap(u32);
     impl Debug;
@@ -193,34 +215,48 @@ bitfield! {
     pub s64a, _: 31;
 }
 
-bitfield! {
-    /// Controls various global actions of the HBA.
-    pub struct GlobaHbaControl(u32);
-    impl Debug;
-
-    /// HBA Reset (HR).
-    ///
-    /// When set by SW (?), thisbit causes an internal reset of the HBA.
-    pub _, reset: 0;
-
-    /// Interrupt Enable (IE).
-    ///
-    /// This global bit enables interrupts from the HBA.
-    pub ie, set_ie: 1;
-
-    /// MSI Revert to Single Message (MRSM).
-    ///
-    /// When set by hardware, indicates that the HBA requested more than one MSI vector but has
-    /// reverted to using the first vector only.
-    pub msrm, _: 2;
-
-    /// AHCI Enable (AE).
-    ///
-    /// When set, indicates that communication to the HBA shall be via AHCI mechanisms.
-    pub ae, set_ae: 31;
+/// Controls various global actions of the HBA.
+#[bitfield]
+#[repr(u32)]
+#[derive(Debug)]
+pub struct GlobalHbaControl {
+    pub reset: bool,
+    pub ie: bool,
+    #[skip(setters)]
+    pub msrm: bool,
+    #[skip]
+    __: B28,
+    pub ae: bool,
 }
 
-bitfield! {
+// bitfield::bitfield! {
+//     /// Controls various global actions of the HBA.
+//     pub struct GlobaHbaControl(u32);
+//     impl Debug;
+
+//     /// HBA Reset (HR).
+//     ///
+//     /// When set by SW (?), thisbit causes an internal reset of the HBA.
+//     pub _, reset: 0;
+
+//     /// Interrupt Enable (IE).
+//     ///
+//     /// This global bit enables interrupts from the HBA.
+//     pub ie, set_ie: 1;
+
+//     /// MSI Revert to Single Message (MRSM).
+//     ///
+//     /// When set by hardware, indicates that the HBA requested more than one MSI vector but has
+//     /// reverted to using the first vector only.
+//     pub msrm, _: 2;
+
+//     /// AHCI Enable (AE).
+//     ///
+//     /// When set, indicates that communication to the HBA shall be via AHCI mechanisms.
+//     pub ae, set_ae: 31;
+// }
+
+bitfield::bitfield! {
     /// Used to configure the command completion coalescing feature for the entire HBA.
     pub struct CccCtl(u32);
     impl Debug;
