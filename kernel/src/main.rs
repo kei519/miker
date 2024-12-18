@@ -8,12 +8,10 @@ use kernel::*;
 
 use core::fmt::Write as _;
 
-use acpi::MMIO_PHYS_BASE;
 use alloc::format;
 use task::TASK_MANAGER;
 use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
 use util::paging::PAGE_SIZE;
-use util::pci::ConfigSpaces;
 use util::{
     asmfunc,
     buffer::StrBuf,
@@ -98,11 +96,7 @@ fn main2(runtime: SystemTable<Runtime>) -> Result<()> {
     interrupt::init()?;
     acpi::init(runtime)?;
 
-    // Safety: It's ok because passed by UEFI.
-    let pci_configs = unsafe { ConfigSpaces::from_ptr(MMIO_PHYS_BASE.get() as _) };
-    for (class, bdf) in pci_configs.valid_bfds_and_classes() {
-        printkln!("{class:02x?}: {bdf}");
-    }
+    driver::init()?;
 
     timer::init()?;
     TASK_MANAGER.init();

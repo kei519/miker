@@ -4,6 +4,7 @@
 #![deny(improper_ctypes_definitions)]
 
 pub mod acpi;
+pub mod driver;
 pub mod interrupt;
 pub mod memmap;
 pub mod paging;
