@@ -1,6 +1,7 @@
 //! Provides PCI supports.
 
 use core::{
+    cmp,
     fmt::{Debug, Display},
     marker::PhantomData,
     mem,
@@ -244,9 +245,185 @@ pub struct RawCapability<'a> {
     pub next: u8,
 
     /// Raw data of the capability whose structure depends of its ID.
+    ///
+    /// # Safety
+    ///
+    /// `raw_data` modulo 4 is 2.
     pub raw_data: *mut u8,
 
     _lifetime: PhantomData<&'a ()>,
+}
+
+/// Represents a apability in a configuration space, and it could be handled as non-raw data.
+#[derive(Debug)]
+pub enum Capability<'a> {
+    /// Message Signaled Interrupt capability.
+    Msi(MsiCapability<'a>),
+    /// Not supported.
+    Unknown(RawCapability<'a>),
+}
+
+impl<'a> From<RawCapability<'a>> for Capability<'a> {
+    fn from(value: RawCapability<'a>) -> Self {
+        // WARNING: We don't know whether id depends on a class.
+        match value.cap_id {
+            5 => Self::Msi(MsiCapability(value.raw_data, value._lifetime)),
+            _ => Self::Unknown(value),
+        }
+    }
+}
+
+/// Reperesents a MSI (Message Signaled Interrupt) capability.
+pub struct MsiCapability<'a>(*mut u8, PhantomData<&'a ()>);
+
+impl MsiCapability<'_> {
+    fn msg_ctrl(&self) -> u16 {
+        // Safety:
+        // * valid
+        // * properly aligned because self.0 modulo 4 is 2.
+        // * initialized by UEFI.
+        unsafe { self.0.cast::<u16>().read() }
+    }
+
+    fn msg_ctrl_mut(&mut self) -> &mut u16 {
+        // self.0 is not null.
+        // Safety:
+        // * properly aligned because self.0 modulo 4 is 2 i.e. self.0 modulo 2 is 0.
+        // * dereferenceable because it's allocated by UEFI.
+        // * meet the aliasing rules by PhantomData
+        unsafe { self.0.cast::<u16>().as_mut().unwrap() }
+    }
+
+    /// Sets whether MSI is enabled.
+    pub fn enable(&mut self, enabled: bool) {
+        self.msg_ctrl_mut().set_bit(0, enabled);
+    }
+
+    /// Returns whether MSI is enabled.
+    pub fn is_enabled(&self) -> bool {
+        self.msg_ctrl().get_bit(0)
+    }
+
+    /// Returns Multiple Message Capable, which determins the number of requested vectors.
+    pub fn multi_msg_capable(&self) -> usize {
+        // Multiple Message Capable bits represents log base 2 of it.
+        1 << self.msg_ctrl().get_bits(1..4) as usize
+    }
+
+    /// Returns the current number of allcoated vectors (equal to or less than the number of
+    /// requested vectors).
+    pub fn multi_msg_enable(&self) -> usize {
+        // Same as Multiple Message Capable.
+        1 << self.msg_ctrl().get_bits(4..7) as usize
+    }
+
+    /// Updates the number of allocated vectors.
+    ///
+    /// # Note
+    ///
+    /// Multiple Message Enable bits, which determins the number of allocated vectors accepts only
+    /// power of 2 less than or equal to 32. When given `num` does not meet this requirement, we
+    /// set the minimum of 32 and the next power of 2 of `num`.
+    pub fn set_multi_message_enable(&mut self, num: usize) {
+        self.msg_ctrl_mut()
+            .set_bits(4..7, cmp::min(num, 32).next_power_of_two().ilog2() as _);
+    }
+
+    /// Returns the capability of sending a 64-bit message address.
+    pub fn msg_addr_is_64bit(&self) -> bool {
+        self.msg_ctrl().get_bit(7)
+    }
+
+    /// Returns whether the function supports MSI per-vector masking.
+    ///
+    /// # Note
+    ///
+    /// When per-vector masking is enabled, the function is prohibited from sending the associated
+    /// message, and must set the associated Pending bit whenever the function would otherwise send
+    /// the message to a masked vector.
+    pub fn per_vector_macking_capable(&self) -> bool {
+        self.msg_ctrl().get_bit(8)
+    }
+
+    /// Returns the system-specified message address.
+    pub fn msg_addr(&self) -> u64 {
+        // Safety:
+        // * not null
+        // * aligned to multiple of 4 because self.0 modulo 4 is 2.
+        // * valid to read because they are set by UEFI.
+        unsafe {
+            let addr = self.0.add(2).cast::<u32>().read() as u64;
+            if self.msg_addr_is_64bit() {
+                addr | (self.0.add(6).cast::<u32>().read() as u64) << 32
+            } else {
+                addr
+            }
+        }
+    }
+
+    /// Sets the system-specified message address.
+    pub fn set_msg_addr(&mut self, addr: u64) {
+        // Safety: Same as msg_addr and the ownership of it is controlled by PhantomData.
+        unsafe {
+            self.0.add(2).cast::<u32>().write(addr as _);
+            if self.msg_addr_is_64bit() {
+                self.0.add(6).cast::<u32>().write(addr.get_bits(32..) as _);
+            }
+        }
+    }
+
+    /// Returns the system-specified message data.
+    pub fn msg_data(&self) -> u16 {
+        // Safety:
+        // * not null
+        // * aligned to multiple of 4 because self.0 modulo 4 is 2.
+        // * valid to read because they are set by UEFI.
+        unsafe {
+            *if self.msg_addr_is_64bit() {
+                self.0.add(10)
+            } else {
+                self.0.add(6)
+            }
+            .cast()
+        }
+    }
+
+    /// Sets the system-specified message data.
+    pub fn set_msg_data(&mut self, data: u16) {
+        unsafe {
+            *if self.msg_addr_is_64bit() {
+                self.0.add(10)
+            } else {
+                self.0.add(6)
+            }
+            .cast() = data;
+        }
+    }
+
+    // TODO: Support Mask Bits and Pending Bits.
+}
+
+impl Debug for MsiCapability<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let mut ret = f.debug_struct("MsiCapability");
+
+        ret.field("msi_enabled", &self.is_enabled())
+            .field("multi_msg_capable", &self.multi_msg_capable())
+            .field("multi_msg_enable", &self.multi_msg_enable())
+            .field("msg_addr_is_64bit", &self.msg_addr_is_64bit())
+            .field(
+                "per_vector_masking_capable",
+                &self.per_vector_macking_capable(),
+            )
+            .field("msg_addr", &self.msg_addr())
+            .field("msg_data", &self.msg_data());
+
+        if self.per_vector_macking_capable() {
+            ret.finish_non_exhaustive()
+        } else {
+            ret.finish()
+        }
+    }
 }
 
 impl Debug for RawCapability<'_> {
@@ -282,6 +459,8 @@ impl<'a> Iterator for RawCapabilities<'a> {
             Some(RawCapability {
                 cap_id: ptr.add(next_ptr).read(),
                 next: self.next_ptr,
+                // Safety: The remainders when `ptr` and `next_ptr` divided by 4, both are 0 by
+                //         their constructions, so `ptr.add(next_ptr + 2)` module 4 is 2.
                 raw_data: ptr.add(next_ptr + 2),
                 _lifetime: PhantomData,
             })
