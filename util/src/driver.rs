@@ -72,7 +72,7 @@ pub struct GenericHostControl {
     /// Command Completion Coalsecing Ports.
     pub ccc_ports: u32,
     /// Enclosure Management Location.
-    pub em_loc: u32,
+    pub em_loc: EmLoc,
     /// Enclosure Management Control.
     pub em_ctl: u32,
     /// Host Capailities Extended.
@@ -269,6 +269,25 @@ pub struct CccCtl {
     ///
     /// The timeout value is specified in 1 millisecond intervals.
     pub tv: u16,
+}
+
+/// The enclosure management location register identifies the location and size of the enclosure
+/// management message buffer.
+#[bitfield(bits = 32)]
+#[repr(u32)]
+#[derive(Debug, Default)]
+pub struct EmLoc {
+    /// Buffer Size (SZ).
+    ///
+    /// Specifies the size of the transmit message buffer area in Dwords.
+    #[skip(setters)]
+    pub sz: u16,
+
+    /// Offset (OFST).
+    ///
+    /// The offset of the message buffer in Dwords from the beginning of the ABAR.
+    #[skip(setters)]
+    pub ofst: u16,
 }
 
 /// Vendor specific registers at offset 0xA0 to 0xFF for a HBA register.
