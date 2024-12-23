@@ -60,7 +60,7 @@ pub struct GenericHostControl {
     /// Host Capabilities.
     pub cap: HbaCap,
     /// Global Host Control.
-    pub ghc: u32,
+    pub ghc: GlobalHbaControl,
     /// Interrupt Status.
     pub is: u32,
     /// Ports Implemented.
@@ -224,6 +224,19 @@ pub struct HbaCap {
     /// Indicates whether the HBA can access 64-bit data structures.
     #[skip(setters)]
     pub s64a: bool,
+}
+
+/// Controls various global actions of the HBA.
+#[bitfield]
+#[derive(Debug, Default)]
+pub struct GlobalHbaControl {
+    pub reset: bool,
+    pub ie: bool,
+    #[skip(setters)]
+    pub msrm: bool,
+    #[skip]
+    __: B28,
+    pub ae: bool,
 }
 
 /// Vendor specific registers at offset 0xA0 to 0xFF for a HBA register.
