@@ -443,7 +443,7 @@ pub struct PortRegister {
     /// Signature.
     pub sig: u32,
     /// Serial ATA Status (SCR0: SStatus).
-    pub ssts: u32,
+    pub ssts: SSts,
     /// Serial ATA Control (SCR2: SControl).
     pub sctl: u32,
     /// Serial ATA Error (SCR1: SError).
@@ -956,4 +956,56 @@ impl Default for TfdStatus {
     fn default() -> Self {
         Self::from_bytes([0x7f])
     }
+}
+
+/// Conveys the current state of the interface and host.
+#[bitfield(bits = 32)]
+#[repr(u32)]
+#[derive(Debug, Default)]
+pub struct SSts {
+    /// Device Dtection (DET).
+    ///
+    /// Indicates the interface device detection and Phy state.
+    ///
+    /// | Value | Description |
+    /// | --- | --- |
+    /// | 0 | No device detected and Phy communication not established. |
+    /// | 1 | Device presence detected but Phy communication not established. |
+    /// | 3 | Device presence detected and Phy communication established. |
+    /// | 4 | Phy in offline mode as a result of the interface being disabled or running in a BIST loopback mode. |
+    /// | others | reserved. |
+    #[skip(setters)]
+    pub det: B4,
+
+    /// Cuurent Interface Speed (SPD).
+    ///
+    /// Indicates the negotiated interface communication speed.
+    ///
+    /// | Value | Description |
+    /// | --- | --- |
+    /// | 0 | Device not present or communication not established. |
+    /// | 1 | Generation 1 communication rate negotiated. |
+    /// | 2 | Generation 2 communication rate negotiated. |
+    /// | 3 | Generation 3 communication rate negotiated. |
+    /// | others | reserved. |
+    #[skip(setters)]
+    pub spd: B4,
+
+    /// Interface Power Management (IPM)
+    ///
+    /// Indicates the current interface state.
+    ///
+    /// | Value | Description |
+    /// | --- | --- |
+    /// | 0 | Device not present or communication not established. |
+    /// | 1 | Interface in active state. |
+    /// | 2 | Interface in Partial power management state. |
+    /// | 6 | Interface in Slumber power management state. |
+    /// | 8 | Interface in DevSleep power management state. |
+    /// | others | reserved. |
+    #[skip(setters)]
+    pub ipm: B4,
+
+    #[skip]
+    __: B20,
 }
