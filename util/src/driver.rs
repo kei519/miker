@@ -432,7 +432,7 @@ pub struct PortRegister {
     /// FIS Base Address Upper 32-Bits.
     fbu: u32,
     /// Interrupt Status.
-    pub is: u32,
+    pub is: Is,
     /// Interrupt Enable.
     pub ie: u32,
     /// Command and Status.
@@ -525,4 +525,118 @@ impl fmt::Debug for PortRegister {
             .field("vs", &self.vs)
             .finish()
     }
+}
+
+/// Interrupt Status (IS).
+#[bitfield(bits = 32)]
+#[repr(u32)]
+#[derive(Debug, Default)]
+pub struct Is {
+    /// Device to Host Register FIS Interrupt (DHRS).
+    ///
+    /// A D2H Register FIS has been received with the 'I' bit set, and has been copied into system
+    /// memory.
+    pub dhrs: bool,
+
+    /// PIO Setup FIS Interrupt (PSS).
+    ///
+    /// A PIO Setup FIS has been received with the 'i' bit set, it has been copied into system
+    /// memory, and the data related to that FIS has been transferred.
+    pub pss: bool,
+
+    /// DMA Setup FIS Interrupt (DSS).
+    ///
+    /// A DMA Setup FIS has been received with the 'i' bit set and has been copied into system
+    /// memory.
+    pub dss: bool,
+
+    /// Set Device Bits Interrupt (SDBS).
+    ///
+    /// A Set Device Bits FIS has been received with the 'i' bit set and has been copied into
+    /// system memory.
+    pub sdbs: bool,
+
+    /// Unknown FIS Interrupt (UFS).
+    ///
+    /// When set, indicates that an unknwon FIS was received and has been copied into system
+    /// memory.
+    /// 1=Change in Current Connect Status.
+    #[skip(setters)]
+    pub ufs: bool,
+
+    /// Descriptor Processed (DPS).
+    ///
+    /// A PRD with the 'i' bit set has transferred all of its data.
+    pub dps: bool,
+
+    /// Port Connect Change Status (PCS).
+    ///
+    /// 1=Change in Current Connect Status. 0=No change in Current Connecct Status.
+    #[skip(setters)]
+    pub pcs: bool,
+
+    /// Device Mechaanical Presence Status (DMPS).
+    ///
+    /// When set, indicates that a mechanical presence switch associated with this port has been
+    /// opened or closed, which may lead to a change in the connection state of the device.
+    pub dmps: bool,
+
+    #[skip]
+    __: B14,
+
+    /// PhyRdy Change Status (PRCS).
+    ///
+    /// WHen set indicates the internal PhyRdy signal changed state.
+    #[skip(setters)]
+    pub prcs: bool,
+
+    /// Incorrect Port Multiplier Status (IPMS).
+    ///
+    /// Indicates that the HBA received a FIS from a device that did not have a command
+    /// outstanding.
+    pub ipms: bool,
+
+    /// Overflow Status (OFS).
+    ///
+    /// Indicates that hte HBA received more bytes from a device than was specified in the PRD
+    /// table for the command.
+    pub ofs: bool,
+
+    #[skip]
+    __: B1,
+
+    /// Interface Non-fatal Error Status (INFS).
+    ///
+    /// Indicates that the HBA encountered an error on the Serial ATA interface but was able to
+    /// continue operation.
+    pub infs: bool,
+
+    /// Interface Fatal Error Status (IFS).
+    ///
+    /// Indicates that the HBA encountered an error on the Serial ATA interface but was able to
+    /// continue operation.
+    pub ifs: bool,
+
+    /// Host Bus Data Error Status (HBDS).
+    ///
+    /// Indicates that the HBA encountered a data error (uncorerctable ECC / parity) when reading
+    /// or writeing to system memory.
+    pub hbds: bool,
+
+    /// Host Bus Fatal Error Status (HBFS)>
+    ///
+    /// Indicates that the HBA encountered a host bus error that it cannont recover from, such as a
+    /// bad software pointer.
+    pub hbfs: bool,
+
+    /// Task File Error Status (TFES).
+    ///
+    /// This bit is set whenever the status register is updated by the device and the error bit
+    /// (bit 0 of the Status field in the received FIS) is set.
+    pub tfes: bool,
+
+    /// Cold Port Detect Status (CPDS).
+    ///
+    /// When set, a device status has changed as detected by the cold presence detect logic.
+    pub cpds: bool,
 }
