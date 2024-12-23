@@ -68,7 +68,7 @@ pub struct GenericHostControl {
     /// Version.
     pub vs: u32,
     /// Command Completion Coalescing Control
-    pub ccc_ctl: u32,
+    pub ccc_ctl: CccCtl,
     /// Command Completion Coalsecing Ports.
     pub ccc_ports: u32,
     /// Enclosure Management Location.
@@ -237,6 +237,38 @@ pub struct GlobalHbaControl {
     #[skip]
     __: B28,
     pub ae: bool,
+}
+
+/// Used to configure the command completion coalescing feature for the entire HBA.
+#[bitfield(bits = 32)]
+#[repr(u32)]
+#[derive(Debug, Default)]
+pub struct CccCtl {
+    /// Enable (EN).
+    ///
+    /// When cleared, the command completion coalescing feature is disabled and no CCC interrupts
+    /// are generated.
+    pub en: bool,
+
+    #[skip]
+    __: B2,
+
+    /// Interrupt (INT).
+    ///
+    /// Specifies the interrupt used by the CCC feature. This interrupt must be marked as unused in
+    /// the Ports Implemented (PI) register by the corresponding bit being set to `0`.
+    #[skip(setters)]
+    pub int: B5,
+
+    /// Command Completions (CC)>
+    ///
+    /// Specifies the number of command completions that are necessary to cause a CCC interrupt.
+    pub cc: u8,
+
+    /// Timeout Value (TV).
+    ///
+    /// The timeout value is specified in 1 millisecond intervals.
+    pub tv: u16,
 }
 
 /// Vendor specific registers at offset 0xA0 to 0xFF for a HBA register.
