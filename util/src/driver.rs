@@ -439,7 +439,7 @@ pub struct PortRegister {
     pub cmd: Cmd,
     _reserved0: u32,
     /// Task File Data.
-    pub tfd: u32,
+    pub tfd: Tfd,
     /// Signature.
     pub sig: u32,
     /// Serial ATA Status (SCR0: SStatus).
@@ -904,4 +904,56 @@ pub struct Cmd {
     /// | 0x8 | DevSleep |
     /// | 0x3-0x5, 0x7, 0x9-0xF | Reserved |
     pub icc: B4,
+}
+
+/// This is a 32-bit register that copies specific fields of the task file when FISes are received.
+#[bitfield(bits = 32)]
+#[repr(u32)]
+#[derive(Debug, Default)]
+pub struct Tfd {
+    /// Status (STS).
+    ///
+    /// Contains the lates copy of the task file staus register.
+    #[skip(setters)]
+    pub sts: TfdStatus,
+
+    /// Error (ERR).
+    ///
+    /// Contains the latest copy of the task file error register.
+    #[skip(setters)]
+    pub err: u8,
+
+    #[skip]
+    __: u16,
+}
+
+/// Represents task file status register.
+#[bitfield(bits = 8)]
+#[derive(Debug, BitfieldSpecifier)]
+pub struct TfdStatus {
+    /// Indicates an error during the transfer.
+    #[skip(setters)]
+    pub err: bool,
+
+    /// Command specific.
+    #[skip(setters)]
+    pub cs0: B2,
+
+    /// Indicates a data transfer is requested.
+    #[skip(setters)]
+    pub drq: bool,
+
+    /// Command specific.
+    #[skip(setters)]
+    pub cs1: B3,
+
+    /// Indicates the interface is busy.
+    #[skip(setters)]
+    pub bsy: bool,
+}
+
+impl Default for TfdStatus {
+    fn default() -> Self {
+        Self::from_bytes([0x7f])
+    }
 }
