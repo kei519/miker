@@ -3,6 +3,7 @@
 use core::fmt;
 
 use custom_debug::Debug;
+use modular_bitfield::{bitfield, prelude::*};
 
 use crate::{bitfield::BitField as _, paging::ADDRESS_CONVERTER, pci::ConfigSpace};
 
@@ -57,7 +58,7 @@ pub struct HbaMemoryRegisters {
 #[repr(C)]
 pub struct GenericHostControl {
     /// Host Capabilities.
-    pub cap: u32,
+    pub cap: HbaCap,
     /// Global Host Control.
     pub ghc: u32,
     /// Interrupt Status.
@@ -78,6 +79,151 @@ pub struct GenericHostControl {
     pub cap2: u32,
     /// BIOS/OS Handoff Control and Status.
     pub bohc: u32,
+}
+
+/// Indicates basic capabilities of the HBA to driver software.
+#[bitfield(bits = 32)]
+#[repr(u32)]
+#[derive(Debug, Default)]
+pub struct HbaCap {
+    /// Number of Ports (NP).
+    ///
+    /// 0's based value indicating the maximum number of ports supported by the HBA silicon. A
+    /// muximum of 32 ports can be supported.
+    #[skip(setters)]
+    pub np: B5,
+
+    /// Supports External SATA (SXS).
+    ///
+    /// When set, indicates that the HBA has one or more Serial ATA ports that has a signal only
+    /// connector that is externally accessible (e.g. eSATA connector).
+    #[skip(setters)]
+    pub sxs: bool,
+
+    /// Enclosure Management Supported (EMS).
+    ///
+    /// When set, indicates that the HBA supports enclosure management (defined in section 12).
+    #[skip(setters)]
+    pub ems: bool,
+
+    /// Command Completion Coalescing Supported (CCCS).
+    ///
+    /// When set, indicates that the HBA supports command completion coalescing (defined in
+    /// section 11).
+    #[skip(setters)]
+    pub cccs: bool,
+
+    /// Number of Command Slots (NCS).
+    ///
+    /// 0's based value indicating the number of command slots per port supported by this HBA. A
+    /// minimum of 1 and maximum of 32 slots per port can be supported.
+    #[skip(setters)]
+    pub ncs: B5,
+
+    /// Partial State Capable (PSC).
+    ///
+    /// Indicates whether the HBA can support transition to the Partial state.
+    #[skip(setters)]
+    pub psc: bool,
+
+    /// Slumber State Capable (SSC).
+    ///
+    /// Indicates whether the HBA can support transitions to the Slumber state.
+    #[skip(setters)]
+    pub ssc: bool,
+
+    /// PIO Multiple DRQ Block (PMD).
+    ///
+    /// If set, the HBA supports multiple DRQ block data transfers for the PIO command protocol.
+    #[skip(setters)]
+    pub pmd: bool,
+
+    /// FIS-based Switching Supported (FBSS).
+    ///
+    /// When set, indicates that the HBA supports Port Multiplier FIS-based switching.
+    #[skip(setters)]
+    pub fbss: bool,
+
+    /// Supports Port Multiplier (SPM).
+    ///
+    /// Indicates whether the HBA can support a Port Multiplier.
+    #[skip(setters)]
+    pub smp: bool,
+
+    /// Supports AHCI mode only (SAM).
+    ///
+    /// The SATA controller may optionally support AHCI access mechanism only. If set, indicates
+    /// that the SATA controller does not implement a legacy, task-file based register interface.
+    #[skip(setters)]
+    pub sam: bool,
+
+    #[skip]
+    __: B1,
+
+    /// Interface Speed Support (ISS).
+    ///
+    /// Inicate the maximum speed the HBA can support on its ports.
+    ///
+    /// | Bits | Definition |
+    /// | --- | --- |
+    /// | 0000 | Reserved |
+    /// | 0001 | Gen 1 (1.5 Gbps) |
+    /// | 0010 | Gen 2 (3 Gbps) |
+    /// | 0011 | Gen 3 (6 Gbps) |
+    /// | 0100 - 1111 | Reserved |
+    #[skip(setters)]
+    pub iss: B4,
+
+    /// Supports Command List Override (SCLO).
+    ///
+    /// When set, the HBA supports the PxCMD.CLO bit and its associated function.
+    #[skip(setters)]
+    pub scld: bool,
+
+    /// Supports Activity LED (SAL).
+    ///
+    /// When set, the HBA supports a single activity indication output pin.
+    pub sal: bool,
+
+    /// Supports Aggressive Link Power Management (SALP).
+    ///
+    /// When set, the HBA can support auto-generating link requests to the Partial or Slumber
+    /// states when there are no commands to process.
+    #[skip(setters)]
+    pub salp: bool,
+
+    /// Supports Staggered Sping-up (SSS).
+    ///
+    /// When set, the HBA supports staggered spin-up on its ports, fro use in balancing power
+    /// spikes.
+    #[skip(setters)]
+    pub sss: bool,
+
+    /// Supports Mechanical Presence Switch (SMPS).
+    ///
+    /// When set, the HBA supports mechanical presence switches on its ports for use in hot plug
+    /// operations.
+    #[skip(setters)]
+    pub smps: bool,
+
+    /// Supports SNotification Register.
+    ///
+    /// When set, the HBA supports the PxSNTF (SNotification) register and its assocaiated
+    /// functionality.
+    #[skip(setters)]
+    pub ssntf: bool,
+
+    /// Supports Native Command Queuing (SNCQ).
+    ///
+    /// Indictes whether the HBA supports Serial ATA native command queuing.
+    #[skip(setters)]
+    pub sncq: bool,
+
+    /// Supports 64-bit Addressing (S64A).
+    ///
+    /// Indicates whether the HBA can access 64-bit data structures.
+    #[skip(setters)]
+    pub s64a: bool,
 }
 
 /// Vendor specific registers at offset 0xA0 to 0xFF for a HBA register.

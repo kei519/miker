@@ -12,3 +12,4 @@ alloc = []
 [dependencies]
 custom_debug = "0.6.2"
 macros = { path = "../macros" }
+modular-bitfield = "0.11.2"
