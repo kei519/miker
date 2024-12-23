@@ -441,7 +441,7 @@ pub struct PortRegister {
     /// Task File Data.
     pub tfd: Tfd,
     /// Signature.
-    pub sig: u32,
+    pub sig: Sig,
     /// Serial ATA Status (SCR0: SStatus).
     pub ssts: SSts,
     /// Serial ATA Control (SCR2: SControl).
@@ -955,6 +955,39 @@ pub struct TfdStatus {
 impl Default for TfdStatus {
     fn default() -> Self {
         Self::from_bytes([0x7f])
+    }
+}
+
+/// 32-bit register which contains the initial signature of an attached device when the first D2H
+/// Register IFS is received from that device.
+#[repr(C)]
+#[derive(Debug, Default)]
+pub struct Sig {
+    count: u8,
+    low: u8,
+    mid: u8,
+    high: u8,
+}
+
+impl Sig {
+    /// Sector Count Register.
+    pub fn count(&self) -> u8 {
+        self.count
+    }
+
+    /// LBA Low Register.
+    pub fn low(&self) -> u8 {
+        self.low
+    }
+
+    /// LBA Mid Register.
+    pub fn mid(&self) -> u8 {
+        self.mid
+    }
+
+    /// LBA High Register.
+    pub fn high(&self) -> u8 {
+        self.high
     }
 }
 
