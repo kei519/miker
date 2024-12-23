@@ -74,7 +74,7 @@ pub struct GenericHostControl {
     /// Enclosure Management Location.
     pub em_loc: EmLoc,
     /// Enclosure Management Control.
-    pub em_ctl: u32,
+    pub em_ctl: EmCtl,
     /// Host Capailities Extended.
     pub cap2: u32,
     /// BIOS/OS Handoff Control and Status.
@@ -288,6 +288,94 @@ pub struct EmLoc {
     /// The offset of the message buffer in Dwords from the beginning of the ABAR.
     #[skip(setters)]
     pub ofst: u16,
+}
+
+/// This register is used to control and obtain status for the enclosure management interface.
+#[bitfield(bits = 32)]
+#[repr(u32)]
+#[derive(Debug, Default)]
+pub struct EmCtl {
+    /// Message Received (STS.MR).
+    ///
+    /// The HBA sets this bit when a message is completely received into the message
+    /// buffer.
+    pub sts_mr: bool,
+
+    #[skip]
+    __: B7,
+
+    /// Transmit Message (CTL.TM).
+    ///
+    /// When set by software, the HBA shall transmit the message contained in the message buffer.
+    pub ctl_tm: bool,
+
+    /// Reset (CTL.RST).
+    ///
+    /// When set by software, the HBA shall reset all enclosure management message logic and the
+    /// attached enclosure processor (if applicable) and take all appropriate reset actions to
+    /// ensure messages can be transmitted/recevived after the reset.
+    pub ctl_rst: bool,
+
+    #[skip]
+    __: B6,
+
+    /// LED Message Types (SUPP.LED).
+    ///
+    /// If set, the HBA supports the LED message type defined in section 12.2.1.
+    #[skip(setters)]
+    pub supp_led: bool,
+
+    /// SAF-TE Enclosure Management Messages (SUPP.SAFTE).
+    ///
+    /// If set, the HBA supports the SAF-TE message type.
+    #[skip(setters)]
+    pub supp_safte: bool,
+
+    /// SAF-TE Enclosure Management Messages (SUPP.SAFTE2).
+    ///
+    /// If set, the HBA supports the SAF-2 message type.
+    #[skip(setters)]
+    pub supp_safte2: bool,
+
+    /// SGPIO Enclosure Management Messages (SUPP.SGPIO).
+    ///
+    /// If set, the HBA supports the SGPIO register interface message type.
+    #[skip(setters)]
+    pub supp_sgpio: bool,
+
+    #[skip]
+    __: B4,
+
+    /// Single Message Buffer (ATTR.SMB).
+    ///
+    /// If set, the HBA has one message buffer that is shared for messages to transmit and messages
+    /// received.
+    #[skip(setters)]
+    pub attr_smb: bool,
+
+    /// Transmit Only (ATTR.XMT).
+    ///
+    /// If set, the HBA only supports transmitting messages and does not support receiving
+    /// messages.
+    #[skip(setters)]
+    pub attr_xmt: bool,
+
+    /// Activity LED Hardware Driven (ATTR.ALHD).
+    ///
+    /// If set, the HBA drives the activity LED for the LED message type in hardware and does not
+    /// utilize software settings for this LED.
+    #[skip(setters)]
+    pub attr_alhd: bool,
+
+    /// Port Multiplier Supprt (ATTR.PM).
+    ///
+    /// If set, the HBA supports enclosure management messages for device management messages for
+    /// devices attached via a Port Multiplier.
+    #[skip(setters)]
+    pub attr_pm: bool,
+
+    #[skip]
+    __: B4,
 }
 
 /// Vendor specific registers at offset 0xA0 to 0xFF for a HBA register.
