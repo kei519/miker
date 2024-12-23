@@ -10,4 +10,5 @@ readme.workspace = true
 alloc = []
 
 [dependencies]
+custom_debug = "0.6.2"
 macros = { path = "../macros" }

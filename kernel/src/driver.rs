@@ -1,5 +1,6 @@
 //! Provides drivers for the kernel.
 
+use util::driver::AhciConfig;
 use util::error;
 use util::pci::Capability;
 use util::{error::Result, pci::ConfigSpaces, sync::OnceStatic};
@@ -29,13 +30,14 @@ pub fn init() -> Result<()> {
     };
 
     printkln!("AHCI's capabilities");
-    for cap in CONFIG_SPACES
-        .get_config_space(ahci_bfd)
-        .unwrap()
-        .raw_capabilities()
-        .map(Capability::from)
-    {
+    let mut config = CONFIG_SPACES.get_config_space(ahci_bfd).unwrap();
+    printkln!("{:x?}", *config);
+    for cap in config.raw_capabilities().map(Capability::from) {
         printkln!("{:x?}", cap);
     }
+
+    let mut ahci = AhciConfig::new(&mut config);
+    let hba_reg = ahci.registers();
+    printkln!("{:x?}", hba_reg);
     Ok(())
 }
