@@ -78,7 +78,7 @@ pub struct GenericHostControl {
     /// Host Capailities Extended.
     pub cap2: u32,
     /// BIOS/OS Handoff Control and Status.
-    pub bohc: u32,
+    pub bohc: Bohc,
 }
 
 /// Indicates basic capabilities of the HBA to driver software.
@@ -376,6 +376,40 @@ pub struct EmCtl {
 
     #[skip]
     __: B4,
+}
+
+/// This register controls various global actions of the HBA.
+#[bitfield(bits = 32)]
+#[repr(u32)]
+#[derive(Debug, Default)]
+pub struct Bohc {
+    /// BIOS Owned Semaphore (BOS).
+    ///
+    /// The BIOS sets this bit to establish ownership of the HBA controller.
+    pub bos: bool,
+
+    /// OS Owned Semaphore (OOS).
+    ///
+    /// THe system software sets this bit to request ownership of the HBA controller.
+    pub oos: bool,
+
+    /// SMI on OS Ownership Change Enable (SOOE).
+    ///
+    /// This bit, when set, enables an SMI when the OOC bit has been set.
+    pub sooe: bool,
+
+    /// OS Ownership Change (OCC).
+    ///
+    /// This bit is set when the OOS bit transitions from `0` to `1`.
+    pub ooc: bool,
+
+    /// BIOS Busy (BB).
+    ///
+    /// This bit is used by the BIOS to indicate that it is busy clearing up for ownership change.
+    pub bb: bool,
+
+    #[skip]
+    __: B27,
 }
 
 /// Vendor specific registers at offset 0xA0 to 0xFF for a HBA register.
