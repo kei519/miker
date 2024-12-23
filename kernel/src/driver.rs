@@ -38,6 +38,7 @@ pub fn init() -> Result<()> {
 
     let mut ahci = AhciConfig::new(&mut config);
     let hba_reg = ahci.registers();
-    printkln!("{:x?}", hba_reg);
+    printkln!("generic_host_control: {:x?}", hba_reg.generic_host_control);
+    printkln!("ports_registers[0]: {:x?}", hba_reg.ports_registers[0]);
     Ok(())
 }

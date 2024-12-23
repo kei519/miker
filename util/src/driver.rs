@@ -434,7 +434,7 @@ pub struct PortRegister {
     /// Interrupt Status.
     pub is: Is,
     /// Interrupt Enable.
-    pub ie: u32,
+    pub ie: Ie,
     /// Command and Status.
     pub cmd: u32,
     _reserved0: u32,
@@ -639,4 +639,107 @@ pub struct Is {
     ///
     /// When set, a device status has changed as detected by the cold presence detect logic.
     pub cpds: bool,
+}
+
+/// This register enables and disables the reporting of the corresponding interrupt to system
+/// software.
+#[bitfield(bits = 32)]
+#[repr(u32)]
+#[derive(Debug, Default)]
+pub struct Ie {
+    /// Device to Host Register FIS Interrupt Enable (DHRE).
+    ///
+    /// When set, GHC.IS is set, and IS.DHRS is set, the HBA shall generate an interrupt.
+    pub dhre: bool,
+
+    /// PIO Setup FIS Interrupt Enable (PSE).
+    ///
+    /// When set, GHC.IE is set, and IS.PSS is set, the HBA shall generate an interrupt.
+    pub pse: bool,
+
+    /// DMA Setup FIS Interrupt Enable (DSE).
+    /// When set, GHC.IE is set, and IS.PSS is set, the HBA shall generate an interrupt.
+    pub dse: bool,
+
+    /// Set Device Bits FIS Interrupt Enable (SDBE).
+    ///
+    /// When set, GHC.IS is set, and IS.SDBS is set, the HBA shall generate an interrupt.
+    pub sdbe: bool,
+
+    /// Unknown FIS Interrupt Enalbe (UFE).
+    ///
+    /// When set, GHC.IS is set, and IS.UFS is set, the HBA shall generate an interrupt.
+    pub ufe: bool,
+
+    /// Descriptor Processed Interrupt Enalbe (DPE).
+    ///
+    /// When set, GHC.IE is set, and IS.UFS is set, the HBA shall generate an interrupt.
+    pub dpe: bool,
+
+    /// Port Change Interrupt Enable (PCE).
+    ///
+    /// When set, GHC.IS is set, and IS.DPS is set, the HBA shall generate an interrupt.
+    pub pce: bool,
+
+    /// Device Mechanical Presence Enable (DMPE).
+    ///
+    /// When set, and GHC.IS is set, and IS.DMPS is set, the HBA shall generate an interrupt.
+    //
+    // TODO: This bit shall be a read-only `0` for systems that do not support a mechanical
+    //       presence switch.
+    pub dmpe: bool,
+
+    #[skip]
+    __: B14,
+
+    /// PhyRdy Change Interrupt Enable (PRCE).
+    ///
+    /// When set, and GHC.IE is set, and IS.PRCS is set, the HBA shall generate an interrupt.
+    pub prce: bool,
+
+    /// Incorrect Port Multiplier Enable (IPME).
+    ///
+    /// When set, and GHC.IE and IS.IPMS are set, the HBA shall generate an interrupt.
+    pub impe: bool,
+
+    /// Overflow Enable (OFE).
+    ///
+    /// When set, and GHC.IS and IS.OFS are set, the HBA shall generate an interrupt.
+    pub ofe: bool,
+
+    #[skip]
+    __: bool,
+
+    /// Interface Non-fata Error Enable (INFE).
+    ///
+    /// When set, GHC.IS is set and IS.INFS is set, the HBA shall generate an interrupt.
+    pub infe: bool,
+
+    /// Interface Fatal Error Enable (IFE).
+    ///
+    /// When Set, GHC.IS is set, and IS.IFS is set, the HBA shall generate an interrupt.
+    pub ife: bool,
+
+    /// Host Bus Data Error Enable (HBDE).
+    ///
+    /// When set, GHC.IS is set, and IS.HBDS is set, the HBA shall generate an interrupt.
+    pub hbde: bool,
+
+    /// Host Bus Fatal Error Enable (HBFE).
+    ///
+    /// When set, GHC.IE is set, and IS.HBFS is set, the HBA shall generate an interrupt.
+    pub hbfe: bool,
+
+    /// Task File Error Enable (TFEE).
+    ///
+    /// When set, GHC.IE is set, IS.TFES is set, the HBA shall generate an interrupt.
+    pub tfee: bool,
+
+    /// Cold Presence Detect Enable (CPDE).
+    ///
+    /// When set, GHC.IE is set, and IS.CPDS is set, the HBA shall generate an interrupt.
+    //
+    // TODO: This bit shall be a read-only `0` for systems that do not support cold presence
+    //       detect.
+    pub cpde: bool,
 }
