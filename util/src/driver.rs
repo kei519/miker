@@ -436,7 +436,7 @@ pub struct PortRegister {
     /// Interrupt Enable.
     pub ie: Ie,
     /// Command and Status.
-    pub cmd: u32,
+    pub cmd: Cmd,
     _reserved0: u32,
     /// Task File Data.
     pub tfd: u32,
@@ -742,4 +742,166 @@ pub struct Ie {
     // TODO: This bit shall be a read-only `0` for systems that do not support cold presence
     //       detect.
     pub cpde: bool,
+}
+
+/// Command and Status.
+#[bitfield(bits = 32)]
+#[repr(u32)]
+#[derive(Debug, Default)]
+pub struct Cmd {
+    /// Start (ST).
+    ///
+    /// When set, the HBA may process the command list.
+    pub st: bool,
+
+    /// Spin-Up Device (SUD).
+    ///
+    /// This bit is read/write for HBAs that support staggered spin-up via CAP.SSS. This bit is
+    /// read only `1` for HBAs that do not support staggered spin-up. On an edge detect from `0` to
+    /// `1`, the HBA shall start a COMRESET initialization sequence to the device.
+    pub sud: bool,
+
+    /// Power On Device (POD).
+    ///
+    /// This bit is read/write for HBAs that support cold presence detection on this port as
+    /// indicated by CMD.CPD set. This bit is read only `1` for HBAs that do not support cold
+    /// presence detect.
+    pub pod: bool,
+
+    /// Commmand List Override (CLO).
+    ///
+    /// Setting this bit causes TFE.STS.BSY and TFD.STS.DRQ to be cleared.
+    pub clo: bool,
+
+    /// FIS Receive Enable (FRE).
+    ///
+    /// When set, the HBA may post received FISes into the FIS receive area pointed to by FB (and
+    /// for 64-bit HBAs, FBU).
+    pub fre: bool,
+
+    #[skip]
+    __: B3,
+
+    /// Current COmmand Slot (CCS).
+    ///
+    /// This field is valid when CMD.ST is set and shall be set to the command slot value of the
+    /// command that is currently being issued by the HBA.
+    #[skip(setters)]
+    pub ocs: B5,
+
+    /// Mechanical Presence Switch State (MPSS).
+    ///
+    /// The MPSS bit reports the state of a mechanical presence switch attached to this port. If
+    /// CAP.SMPS is set and the mechanical presence switch is closed then this bit is cleared. If
+    /// CAP.SMP is set and the mechanical presence switch is open then this bit is set. If CAP.SMPS
+    /// is cleared then this bit is cleared.
+    #[skip(setters)]
+    pub mpss: bool,
+
+    /// FIS Receive Running (FR).
+    ///
+    /// When set, the FIS REceive DMA engine for the port is running.
+    #[skip(setters)]
+    pub fr: bool,
+
+    /// Command List Running (CR).
+    ///
+    /// When this bit is set, the commnad list DMA engine for the port is running.
+    #[skip(setters)]
+    pub cr: bool,
+
+    /// Cold Presence State (CPS).
+    ///
+    /// The CPS bit reports whether a device is currently detected on this port via cold presence
+    /// detection.
+    #[skip(setters)]
+    pub cps: bool,
+
+    /// Port Multiplier Attached (PMA).
+    ///
+    /// This bit is read/write for HBAs that support a Port Multiplier (CAP.SPM = `1`). When set by
+    /// software, a Port Multiplier is attached to the HBA for this port. Software is responsible
+    /// for detecting whether a Port Multiplier is present.
+    pub pma: bool,
+
+    /// Hot Plug Capable Port (HPCP).
+    ///
+    /// When set, indicates that this port's signal and power connectors are externally accessible
+    /// via a joint signal and power connector for blindmate device hot plug. When cleared,
+    /// indicates that this port's signal and power connectors are not externally accessible via a
+    /// joint signal and power connector.
+    #[skip(setters)]
+    pub hpcp: bool,
+
+    /// Mechanial Presence Switch Attatched to Port (MPSP).
+    ///
+    /// If set, the platform supports an mechanical presence switch attached to this port.
+    #[skip(setters)]
+    pub mpsp: bool,
+
+    /// Cold Presence Detection (CPD).
+    ///
+    /// If set, the platform supports cold presence detection on this port.
+    #[skip(setters)]
+    pub cpd: bool,
+
+    /// External SATA Port (ESP).
+    ///
+    /// When set, indicates that this port's signal connector is externally accessible on a signal
+    /// only connector (e.g. eSATA connector).
+    #[skip(setters)]
+    pub esp: bool,
+
+    /// FIS-based Switching Capable Port (FBSCP).
+    ///
+    /// When set, indicates that this port supports Port Multiplier FIS-based switching.
+    #[skip(setters)]
+    pub fbscp: bool,
+
+    /// Automatic Paritla to Slumber Transitions Enabled (APSTE).
+    ///
+    /// When set, the HBA may perform Automatic Partial to Slumber Transitions.
+    pub apste: bool,
+
+    /// Device is ATAPI (ATAPI).
+    ///
+    /// When set, the connected device is an ATAPI device. This bit is used by the HBA to control
+    /// whether or not to generate the desktop LED when commands are active.
+    pub atapi: bool,
+
+    /// Drive LED on ATAPI Enable (DLAE).
+    ///
+    /// When set, the HBA shall drive the LED pin active for commands regardless of the state of
+    /// CMD.ATAPI.
+    pub dlae: bool,
+
+    /// Aggressive Link Power Management Enable (ALPE).
+    ///
+    /// When set, the HBA shall aggressively enter a lower link power state (Partial or Slumber)
+    /// based upon the setting of the ASP bit. If CAP.SALP is cleared, software shall treat this
+    /// bit as reserved.
+    pub alpe: bool,
+
+    /// Aggressive Slumber / Partial (ASP).
+    ///
+    /// When set, and ALPE is set, the HBA shall aggressively enter the Slumber state when it
+    /// cleares the CI register and the SACT register is cleared or when it clears the SACT
+    /// register and CI is cleared. If CAP.SALP is cleared, software shall treat this bit as
+    /// reserved.
+    pub asp: bool,
+
+    /// Interface Communication Control (ICC).
+    ///
+    /// This field is used to control power management states of the interface.
+    ///
+    ///
+    /// | Value | Definition |
+    /// | --- | --- |
+    /// | 0x0 | No-Op/Idle |
+    /// | 0x1 | Active |
+    /// | 0x2 | Partial |
+    /// | 0x6 | Slumber |
+    /// | 0x8 | DevSleep |
+    /// | 0x3-0x5, 0x7, 0x9-0xF | Reserved |
+    pub icc: B4,
 }
