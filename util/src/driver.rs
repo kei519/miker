@@ -457,7 +457,7 @@ pub struct PortRegister {
     /// FIS-based Switching Control.
     pub fbs: Fbs,
     /// Device Sleep.
-    pub devslp: u32,
+    pub devslp: DevSlp,
     _reserved1: [u8; 0x28],
     /// Vendor Specific.
     pub vs: u128,
@@ -1273,4 +1273,59 @@ pub struct Fbs {
 
     #[skip]
     __: B12,
+}
+
+/// Device Sleep.
+#[bitfield(bits = 32)]
+#[repr(u32)]
+#[derive(Debug, Default)]
+pub struct DevSlp {
+    /// Aggressive Device Sleep Enable (ADSE).
+    ///
+    /// When set, the HBA shall assert the DEVSLP signal after the port has been idle (CI = 0 and
+    /// SACT = 0) for the amount of time specified by the DEVSLP.DITO.
+    pub adse: bool,
+
+    /// Device Sleep Present (DSP).
+    ///
+    /// If set, the platform supports Device Sleep on this port.
+    #[skip(setters)]
+    pub dsp: bool,
+
+    /// Device Sleep Exit Timeout (DETO).
+    ///
+    /// Specifies the maximum duration (in approximate 1ms granularity) from DEVSLP de-assertion
+    /// until the device is ready to accept OOB.
+    ///
+    /// Software shall only set this value when CMD.ST is cleared, DEVSLP.ADSE is cleared and prior
+    /// to setting CMD.ICC to 8.
+    pub deto: u8,
+
+    /// Minimum Device Sleep Assertion Time (MDAT).
+    ///
+    /// Specifies the minimum amount of time (in 1ms granularity) that the HBA must assert the
+    /// DEVSLP signal before it may be de-asserted.
+    ///
+    /// Software shall only set this value when CMD.ST is cleared, DEVSLP.ADSE is cleared and prior
+    /// to setting CMD.ICC to 8.
+    pub mdat: B5,
+
+    /// Device Sleep Idle Timeout (DITO).
+    ///
+    /// Specifies the amount of the time (in approximate 1ms granularity) that the HBA shall wait
+    /// before driving the DEVSLP signal.
+    ///
+    /// Software shall only set this value when CMD.ST is cleared and DEVSLP.ADSE is cleared.
+    pub dito: B10,
+
+    /// DITO Multiplier (DM).
+    ///
+    /// 0's based value that specifies the DITO multiplier that the HBA applies to the specified
+    /// DITO value. The HBA computes the total idle timeout as a product of DM and DITO (i.e.
+    /// DITOactual = DITO * (DM + 1)).
+    #[skip(setters)]
+    pub dm: B4,
+
+    #[skip]
+    __: B3,
 }
