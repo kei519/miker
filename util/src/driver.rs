@@ -445,7 +445,7 @@ pub struct PortRegister {
     /// Serial ATA Status (SCR0: SStatus).
     pub ssts: SSts,
     /// Serial ATA Control (SCR2: SControl).
-    pub sctl: u32,
+    pub sctl: SCtl,
     /// Serial ATA Error (SCR1: SError).
     pub serr: u32,
     /// Serial ATA Active. (SCR3: SActive).
@@ -1041,4 +1041,67 @@ pub struct SSts {
 
     #[skip]
     __: B20,
+}
+
+/// 32-bit register by which software controls SATA capabilities.
+#[bitfield(bits = 32)]
+#[repr(u32)]
+#[derive(Debug, Default)]
+pub struct SCtl {
+    /// Device Detection Initialization (DET).
+    ///
+    /// Controls the HBA's device detection and interface initialization.
+    ///
+    /// | Value | Description |
+    /// | --- | --- |
+    /// | 0 | No device detection or initialization action requested. |
+    /// | 1 | Perform interface communication initialization sequence to establish communication. |
+    /// | 4 | Disable the Serial ATA interface and put Phy in offline mode. |
+    /// | others | reserved. |
+    pub det: B4,
+
+    /// Speed Allowed (SPD).
+    ///
+    /// Indicates the highest allowable speed of the interface.
+    ///
+    /// | Value | Description |
+    /// | --- | --- |
+    /// | 0 | No speed negotiation restrictions |
+    /// | 1 | Limit speed negotiation to Generation 1 communication rate. |
+    /// | 2 | Limit speed negotiation to rage not greater than Generation 2 communication rate. |
+    /// | 3 | Limit speed negotiation to rage not greater than Generation 3 communication rate. |
+    /// | others | reserved. |
+    pub spd: B4,
+
+    /// Interface Power Management Transitions Allowed (IPM).
+    ///
+    /// Indicates which power states the HBA is allowed to transition to.
+    ///
+    /// | Value | Description |
+    /// | --- | --- |
+    /// | 0 | No intarface restrictions. |
+    /// | 1 | Transitions to the Partial state disabled. |
+    /// | 2 | Transitions to the Slumber state disabled. |
+    /// | 3 | Transitions to the Partial and Slumber states disabled. |
+    /// | 4 | Transitions to the DebSleep power management states disabled. |
+    /// | 5 | Transitions to the Partial and DevSleep power management states disabled. |
+    /// | 6 | Transitions to the Slumber and DevSleep power management states disabled. |
+    /// | 7 | Transitions to the Partila, Slumber and DevSleep power management states disabled. |
+    /// | others | reserved. |
+    pub ipm: B4,
+
+    /// Select Power Managment (SPM).
+    ///
+    /// This field is not used by AHCI.
+    #[skip(setters)]
+    pub spm: B4,
+
+    /// Port Multiplier Port (PMP).
+    ///
+    /// This field is not used by AHCI.
+    #[skip(setters)]
+    pub pmp: B4,
+
+    #[skip]
+    __: B12,
 }
