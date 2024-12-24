@@ -447,7 +447,7 @@ pub struct PortRegister {
     /// Serial ATA Control (SCR2: SControl).
     pub sctl: SCtl,
     /// Serial ATA Error (SCR1: SError).
-    pub serr: u32,
+    pub serr: SErr,
     /// Serial ATA Active. (SCR3: SActive).
     pub sact: u32,
     /// Command Issue.
@@ -1104,4 +1104,120 @@ pub struct SCtl {
 
     #[skip]
     __: B12,
+}
+
+/// Serial ATA Error. Consists of the lower 16-bit `ERR` and the upper 8-bit `DIAG`.
+///
+/// ## Error (ERR).
+///
+/// Contains error information for use by host software in determining the appropriate response to
+/// the error condition.
+///
+/// ## Diagnostics (DIAG).
+///
+/// Contains diagnostic error information for use by diagnostic software in validating correct
+/// operation of isolating failure modes.
+#[bitfield(bits = 32)]
+#[repr(u32)]
+#[derive(Debug, Default)]
+pub struct SErr {
+    /// Recovered Data Integrity Error (I)
+    ///
+    /// A data integrity error occured that was recovered by the interface through a retry
+    /// operation or other recovery action.
+    pub err_i: bool,
+
+    /// Recovered Communications Error (M).
+    ///
+    /// Communications between the device and host was temporarily lost but was re-established.
+    pub err_m: bool,
+
+    #[skip]
+    __: B6,
+
+    /// Transient Data Integrity Error (T).
+    ///
+    /// A data integrity error occurred that was not recovered by the interface.
+    pub err_t: bool,
+
+    /// Persistent Communication or Data Integrity Error (C).
+    ///
+    /// A communication error that was not recovered occurred that is expected to be persistent.
+    pub err_c: bool,
+
+    /// Protocol Error (P).
+    ///
+    /// A violatio of the Serial ATA protocol was detected.
+    pub err_p: bool,
+
+    /// Internal Error (I).
+    ///
+    /// The host bus adapter experienced an internal error that caused the operation to fail and
+    /// may have put the host bus adapter into an error state.
+    pub err_e: bool,
+
+    #[skip]
+    __: B4,
+
+    /// PhyRdy Change (N).
+    ///
+    /// Indicates that the PhyRdy signal changed state.
+    pub diag_n: bool,
+
+    /// Phy Internal Error (I).
+    ///
+    /// Indicates that the Phy detected some internal error.
+    pub diag_i: bool,
+
+    /// Comm Wake (W).
+    ///
+    /// Indicates that a Comm Wake signal was detected by the Phy.
+    pub diag_w: bool,
+
+    /// 10B to 8B Decode Error (B).
+    ///
+    /// Indicates that one or more 10B to 8B decoding errors occurred.
+    pub diag_b: bool,
+
+    /// Disparity Error (D).
+    ///
+    /// This field is not used by AHCI.
+    pub diag_d: bool,
+
+    /// CRC Error (C).
+    ///
+    /// Indicates that one or more CRC errors occurred with the Link Layer.
+    pub diag_c: bool,
+
+    /// Hnadshake Error (H).
+    ///
+    /// Indicates that one or more R_ERR handshake response was received in response to frame
+    /// transmission.
+    pub diag_h: bool,
+
+    /// Link Sequence Error (S).
+    ///
+    /// Indicates that one or more Link state machine error conditions was encountered.
+    pub diag_s: bool,
+
+    /// Transport state transition error (T).
+    ///
+    /// Indicates that an error has occurred in the transition from one state to another within the
+    /// Transport layer since the last time this bit was cleared.
+    pub diag_t: bool,
+
+    /// Unknown FIS Type (F).
+    ///
+    /// Indicates that one or more FISs were received by the Transport layer with good CRC, but had
+    /// a type field that was not recognized/known.
+    pub diag_f: bool,
+
+    /// Exchanged (X).
+    ///
+    /// When set, indicates that a change in device presence has been detected since the last time
+    /// cleared.
+    pub diax_x: bool,
+
+    #[skip]
+    __: B5,
 }
