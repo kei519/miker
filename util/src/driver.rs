@@ -455,7 +455,7 @@ pub struct PortRegister {
     /// Serial ATA Notification (SCR4: SNotification).
     pub sntf: u32,
     /// FIS-based Switching Control.
-    pub fbs: u32,
+    pub fbs: Fbs,
     /// Device Sleep.
     pub devslp: u32,
     _reserved1: [u8; 0x28],
@@ -1220,4 +1220,57 @@ pub struct SErr {
 
     #[skip]
     __: B5,
+}
+
+/// Used to control and obtain status for Port Multiplier FIS-based switching.
+#[bitfield(bits = 32)]
+#[repr(u32)]
+#[derive(Debug, Default)]
+pub struct Fbs {
+    /// Enable (EN).
+    ///
+    /// When set, a Port Multiplier is attached and the HBA shall use FIS-based switching to
+    /// communicate with it.
+    pub en: bool,
+
+    /// Device Error Clear (DEC).
+    ///
+    /// When set by software, the HBA shall clear the device specific error condition and the HBA
+    /// shall flush any commands outstanding for the device that experienced the error, including
+    /// clearing th CI and SACT for that device.
+    pub dec: bool,
+
+    /// Single Device Error (SDE).
+    ///
+    /// When set and a fatal error condition has occurred, hardware believes the error is localized
+    /// to one device such that software's first error recovery step should be to utilize the
+    /// FBS.DEC functionality.
+    #[skip(setters)]
+    pub sde: bool,
+
+    #[skip]
+    __: B5,
+
+    /// Device To Issue (DEV).
+    ///
+    /// Set by software to the Port Multiplier port value of the next command to be issued to
+    /// without fetching the command header.
+    pub dev: B4,
+
+    /// Active Device Optimazation (ADO).
+    ///
+    /// Exposes the number of active devices that the FIS-based switching implementation has bee
+    /// optimized for.
+    #[skip(setters)]
+    pub ado: B4,
+
+    /// Device With Error (DWE).
+    ///
+    /// Set by harware to the value of the Port Multiplier port number of the device that
+    /// experienced a fatal error condition.
+    #[skip(setters)]
+    pub dwe: B4,
+
+    #[skip]
+    __: B12,
 }
