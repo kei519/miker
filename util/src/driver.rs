@@ -227,15 +227,33 @@ pub struct HbaCap {
 }
 
 /// Controls various global actions of the HBA.
-#[bitfield]
+#[bitfield(bits = 32)]
 #[derive(Debug, Default)]
 pub struct GlobalHbaControl {
-    pub reset: bool,
+    /// HBA Reset (HR).
+    ///
+    /// When set by SW, this bit causes an internal reset of the HBA.
+    pub hr: bool,
+
+    /// Interrupt Enable (IE).
+    ///
+    /// This global bit enables interrupts from the HBA. When cleared (reset default), all
+    /// interrupt sources from all prots are disabled. When set, interrupts are enabled.
     pub ie: bool,
+
     #[skip(setters)]
+    /// MSI Revert to Single Message (MRSM).
+    ///
+    /// When set by hardware, indicates that the HBA requested more than one MSI vector but has
+    /// reverted to using the first vector only.
     pub msrm: bool,
+
     #[skip]
     __: B28,
+
+    /// AHCI Enable (AE).
+    ///
+    /// When set, indicates that communication to the HBA shall be via AHCI mechanisms.
     pub ae: bool,
 }
 
