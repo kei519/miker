@@ -23,7 +23,7 @@ macro_rules! error {
 /// Make a function meet the x64 interrupt calling convention. Then, pass a reference to
 /// `util::interrupt::InterruptFrame` to a function.
 ///
-/// Since some CPU exceptions pass an error code to handlers, can receive it to add an extra
+/// Since some CPU exceptions pass an error code to handlers, can receive it by adding an extra
 /// [`u64`] parameter. Adding an extra argument causes UB when the CPU/software interruption does
 /// not pass an error code.
 ///
