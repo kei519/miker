@@ -4,9 +4,9 @@
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
-use quote::{quote, quote_spanned, ToTokens, TokenStreamExt};
+use quote::{ToTokens, TokenStreamExt, quote, quote_spanned};
 use syn::{
-    parse_macro_input, spanned::Spanned, token::Extern, Abi, Error, FnArg, Ident, ItemFn, LitStr,
+    Abi, Error, FnArg, Ident, ItemFn, LitStr, parse_macro_input, spanned::Spanned, token::Extern,
 };
 
 extern crate proc_macro;
@@ -196,12 +196,12 @@ pub fn interrupt_handler(args: TokenStream, input: TokenStream) -> TokenStream {
     let ret = quote! {
         #func_type_check
 
-        extern "sysv64" {
+        unsafe extern "sysv64" {
             fn #old_ident();
         }
         ::core::arch::global_asm!(#caller_asm_code);
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         #func
     };
 

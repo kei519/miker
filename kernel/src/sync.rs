@@ -10,7 +10,7 @@ use core::{
 
 use alloc::collections::VecDeque;
 
-use crate::task::{TaskId, TASK_MANAGER};
+use crate::task::{TASK_MANAGER, TaskId};
 
 /// Shared reference providing mutable exclusion.
 pub struct Mutex<T> {
@@ -139,7 +139,7 @@ impl<T> Mutex<T> {
             if let Some(index) = queue
                 .iter()
                 .enumerate()
-                .find(|(_, &id)| id == task_id)
+                .find(|&(_, &id)| id == task_id)
                 .map(|(i, _)| i)
             {
                 queue.remove(index);

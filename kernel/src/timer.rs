@@ -39,7 +39,7 @@ pub fn init() -> Result<()> {
     Ok(())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn _int_handler_timer(prev_ctx: &Context) {
     let current = COUNT.fetch_add(1, Relaxed) + 1;
     apic::notify_end_of_interrupt();

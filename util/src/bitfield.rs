@@ -14,7 +14,9 @@ pub trait BitField {
     fn set_bits(&mut self, bits: impl RangeBounds<u32>, value: Self);
 }
 
-crate::impl_bit_field!(i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, isize, usize);
+crate::impl_bit_field!(
+    i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, isize, usize
+);
 
 /// Implements standard [BitField] implementation to the designated types that have bit operations
 /// and the constant `BITS`.

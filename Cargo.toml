@@ -4,7 +4,7 @@ members = ["kernel", "loader", "macros", "util"]
 
 [workspace.package]
 version = "0.0.0"
-edition = "2021"
+edition = "2024"
 authors = ["kei519 <masaki.keigo.q00@kyoto-u.jp>"]
 description = "A MICro KERnel OS for me to study."
 readme = "README.md"

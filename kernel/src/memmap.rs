@@ -10,11 +10,11 @@ use core::{
 };
 
 use uefi::table::{
-    boot::{MemoryMap, MemoryType},
     Runtime, SystemTable,
+    boot::{MemoryMap, MemoryType},
 };
 use util::{
-    paging::{PageEntry, PAGE_SIZE},
+    paging::{PAGE_SIZE, PageEntry},
     sync::InterruptFreeMutex,
 };
 

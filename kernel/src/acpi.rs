@@ -1,5 +1,5 @@
 use alloc::format;
-use uefi::table::{cfg::ACPI2_GUID, Runtime, SystemTable};
+use uefi::table::{Runtime, SystemTable, cfg::ACPI2_GUID};
 use util::error;
 use util::{
     acpi::{DescriptionTable, Fadt, Rsdp},

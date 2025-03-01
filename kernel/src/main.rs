@@ -10,12 +10,12 @@ use core::fmt::Write as _;
 
 use alloc::format;
 use task::TASK_MANAGER;
-use uefi::table::{boot::MemoryMap, Runtime, SystemTable};
+use uefi::table::{Runtime, SystemTable, boot::MemoryMap};
 use util::paging::PAGE_SIZE;
 use util::{
     asmfunc,
     buffer::StrBuf,
-    descriptor::{self, SegmentDescriptor, SegmentType, SystemDescriptor, GDT},
+    descriptor::{self, GDT, SegmentDescriptor, SegmentType, SystemDescriptor},
     error::Result,
     graphics::GrayscalePrint as _,
     screen::{FrameBufferInfo, Screen},
@@ -28,7 +28,7 @@ use {memmap::PAGE_MAP, screen::FB_INFO};
 #[allow(dead_code)]
 struct Stack([u8; 1 << 20]);
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 static mut KERNEL_STACK: Stack = Stack([0; 1 << 20]);
 
 core::arch::global_asm! { r#"
@@ -43,7 +43,7 @@ _start:
 /// Global TSS.
 static TSS: OnceStatic<descriptor::TSS> = OnceStatic::new();
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 fn main(fb_info: &FrameBufferInfo, memmap: &'static mut MemoryMap, runtime: SystemTable<Runtime>) {
     // Safety: There is one processor running and this is the first time to initialize.
     //   There is only `fb_info` that uses first half parts of virtual address. So, all we have to

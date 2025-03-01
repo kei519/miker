@@ -1,37 +1,37 @@
 #![no_std]
 #![no_main]
+#![allow(unsafe_op_in_unsafe_fn)]
 
 use core::{
     any, cmp,
     fmt::{Debug, Display},
-    mem::{transmute, MaybeUninit},
+    mem::{MaybeUninit, transmute},
     ptr, slice,
 };
 
 use uefi::{
-    cstr16, helpers, println,
+    CStr16, Error, Handle, Identify, Status, cstr16, helpers, println,
     proto::{
+        Protocol,
         console::gop::{self, GraphicsOutput},
         loaded_image::LoadedImage,
         media::{
             file::{File, FileAttribute, FileInfo, FileMode, FileType},
             fs::SimpleFileSystem,
         },
-        Protocol,
     },
     table::{
+        Boot, Runtime, SystemTable,
         boot::{
             AllocateType, MemoryMap, MemoryType, OpenProtocolAttributes, OpenProtocolParams,
             ScopedProtocol, SearchType,
         },
-        Boot, Runtime, SystemTable,
     },
-    CStr16, Error, Handle, Identify, Status,
 };
 use util::{
     asmfunc,
     elf::{Elf64Ehdr, Elf64Phdr, ElfProgType},
-    paging::{PageEntry, PageTable, VirtualAddress, PAGE_SIZE},
+    paging::{PAGE_SIZE, PageEntry, PageTable, VirtualAddress},
     screen::{FrameBufferInfo, PixelFormat},
 };
 

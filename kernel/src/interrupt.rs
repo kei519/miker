@@ -177,7 +177,7 @@ fault_handler_no_error!(MC);
 fault_handler_no_error!(XM);
 fault_handler_no_error!(VE);
 
-extern "sysv64" {
+unsafe extern "sysv64" {
     /// Saves context before interrupt, and call [`_int_handler_tiemr`] with an argument, the
     /// reference to the context.
     fn int_handler_timer();
