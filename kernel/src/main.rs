@@ -11,13 +11,13 @@ use core::fmt::Write as _;
 use alloc::format;
 use task::TASK_MANAGER;
 use uefi::table::{Runtime, SystemTable, boot::MemoryMap};
-use util::paging::PAGE_SIZE;
 use util::{
     asmfunc,
     buffer::StrBuf,
     descriptor::{self, GDT, SegmentDescriptor, SegmentType, SystemDescriptor},
     error::Result,
     graphics::GrayscalePrint as _,
+    paging::PAGE_SIZE,
     screen::{FrameBufferInfo, Screen},
     sync::OnceStatic,
 };

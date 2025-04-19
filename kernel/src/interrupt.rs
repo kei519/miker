@@ -195,7 +195,6 @@ int_handler_timer:
 
     # Construct `Context` on the stack
     sub rsp, 512
-    fxsave [rsp]
     push r15
     push r14
     push r13
@@ -252,7 +251,6 @@ int_handler_timer:
     pop r13
     pop r14
     pop r15
-    fxrstor [rsp]
 
     mov rsp, rbp
     pop rbp

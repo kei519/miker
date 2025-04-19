@@ -322,8 +322,6 @@ pub struct Context {
     pub r14: u64,
     /// R15
     pub r15: u64,
-    /// FX
-    pub fxsave_area: [u8; 512],
 }
 
 impl Context {
@@ -415,7 +413,6 @@ _switch_context:
     mov [rsi + 0xa8], r13
     mov [rsi + 0xb0], r14
     mov [rsi + 0xb8], r15
-    fxsave [rsi + 0xc0]
 
     # Fall through to _restore_context
 
@@ -429,7 +426,6 @@ _restore_context:
     push qword ptr [rdi + 0x20] # CS
     push qword ptr [rdi + 0x08] # RIP
 
-    fxrstor [rdi + 0xc0]
     mov r15, [rdi + 0xb8]
     mov r14, [rdi + 0xb0]
     mov r13, [rdi + 0xa8]
