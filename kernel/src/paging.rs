@@ -10,14 +10,14 @@ use util::{
 };
 
 /// Base address to which kernel map whole physical address.
-pub const STRAIGHT_PAGE_MAP_BASE: VirtualAddress = VirtualAddress::new(0xffff_9000_0000_0000);
+pub const STRAIGHT_PAGE_MAP_BASE: VirtualAddress = VirtualAddress::new(0xffff_8000_0000_0000);
 
 /// Size of straight page map. kernel cannot control memory space whose address is over
 /// [`STRAIGHT_PAGE_SIZE`], this is the max physical memory size of kernel.
 pub const STRAIGHT_PAGE_SIZE: u64 = 1 << (12 + 9 * 3);
 
 /// Base virtual address of kernel.
-pub const KERNEL_VIRT_BASE: VirtualAddress = VirtualAddress::new(0xffff_8000_0000_0000);
+pub const KERNEL_VIRT_BASE: VirtualAddress = VirtualAddress::new(0xffff_ffff_8000_0000);
 
 /// Base physical address where kernel is deployed. [`KERNEL_VIRT_BASE`] is mapped to this.
 pub static KERNEL_PHYS_BASE: OnceStatic<u64> = OnceStatic::new();
@@ -102,14 +102,14 @@ pub const fn pyhs_to_virt(addr: u64) -> Option<VirtualAddress> {
 pub fn virt_to_phys(addr: impl Into<VirtualAddress>) -> Option<u64> {
     let addr: VirtualAddress = addr.into();
     let addr = addr.addr;
-    if (0..KERNEL_VIRT_BASE.addr).contains(&addr) {
-        None
-    } else if (KERNEL_VIRT_BASE.addr..STRAIGHT_PAGE_MAP_BASE.addr).contains(&addr) {
-        Some(addr - KERNEL_VIRT_BASE.addr + KERNEL_PHYS_BASE.get())
-    } else if (STRAIGHT_PAGE_MAP_BASE.addr..STRAIGHT_PAGE_MAP_BASE.addr + STRAIGHT_PAGE_SIZE)
+    if (STRAIGHT_PAGE_MAP_BASE.addr..STRAIGHT_PAGE_MAP_BASE.addr + STRAIGHT_PAGE_SIZE)
         .contains(&addr)
     {
         Some(addr - STRAIGHT_PAGE_MAP_BASE.addr)
+    } else if (KERNEL_VIRT_BASE.addr..=u64::MAX).contains(&addr) {
+        // FIXME: This returns Some() even thought there is no mapping. We should get the end of
+        //        kernel address to avoid it.
+        Some(addr - KERNEL_VIRT_BASE.addr + KERNEL_PHYS_BASE.get())
     } else {
         None
     }
