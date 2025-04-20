@@ -46,9 +46,9 @@ pub fn init_straight_mapping() {
     // Safety: Page map for kernel defenitely exists because if not, kernel does not properly work.
     let kernel_phys_base = unsafe {
         pml4[KERNEL_VIRT_BASE.pml4_index()] // PML4
-            .next() .unwrap()[KERNEL_VIRT_BASE.pdp_index()] // PDPT
-            .next() .unwrap()[KERNEL_VIRT_BASE.pd_index()] // PD
-            .next() .unwrap()[KERNEL_VIRT_BASE.pt_index()] // PT
+            .next().unwrap()[KERNEL_VIRT_BASE.pdp_index()] // PDPT
+            .next().unwrap()[KERNEL_VIRT_BASE.pd_index()] // PD
+            .next().unwrap()[KERNEL_VIRT_BASE.pt_index()] // PT
             .next_addr()
     };
     KERNEL_PHYS_BASE.init(kernel_phys_base);
