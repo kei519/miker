@@ -12,13 +12,13 @@ command = "cargo"
 args = ["build", "--release", "--config", "${CONFIG_PATH}"]
 
 [tasks.build]
-dependencies = ["split-debuginfo"]
+dependencies = ["strip-debuginfo"]
 
 [tasks.build-with-debuginfo]
 command = "cargo"
 args = ["build", "--config", "${CONFIG_PATH}"]
 
-[tasks.split-debuginfo]
+[tasks.strip-debuginfo]
 dependencies = ["build-with-debuginfo"]
 script = '''
 #!/bin/bash -ex
