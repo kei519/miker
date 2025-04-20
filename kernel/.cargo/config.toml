@@ -6,9 +6,8 @@ rustflags = [
     "no-redzone=yes",
     "-C",
     "relocation-model=static",
-
     "-C",
-    "link-arg=--image-base=0xffff800000000000",
+    "link-arg=-Tkernel/link.ld",
     "-C",
-    "code-model=large",
+    "code-model=kernel",
 ]
