@@ -16,11 +16,25 @@ pub const STRAIGHT_PAGE_MAP_BASE: VirtualAddress = VirtualAddress::new(0xffff_80
 /// [`STRAIGHT_PAGE_SIZE`], this is the max physical memory size of kernel.
 pub const STRAIGHT_PAGE_SIZE: u64 = 1 << (12 + 9 * 3);
 
+unsafe extern "C" {
+    /// Placed at the start of the kernel.
+    static _kernel_start: core::ffi::c_void;
+
+    /// Placed at the end of the kernel.
+    static _kernel_end: core::ffi::c_void;
+}
+
 /// Base virtual address of kernel.
-pub const KERNEL_VIRT_BASE: VirtualAddress = VirtualAddress::new(0xffff_ffff_8000_0000);
+pub static KERNEL_VIRT_BASE: OnceStatic<VirtualAddress> = OnceStatic::new();
+
+/// End of the virtual address of the kernel.
+pub static KERNEL_VIRT_END: OnceStatic<VirtualAddress> = OnceStatic::new();
 
 /// Base physical address where kernel is deployed. [`KERNEL_VIRT_BASE`] is mapped to this.
 pub static KERNEL_PHYS_BASE: OnceStatic<u64> = OnceStatic::new();
+
+/// End of the physical address of the kernel.
+pub static KERNEL_PHYS_END: OnceStatic<u64> = OnceStatic::new();
 
 /// PML4 used by kernel.
 pub static KERNEL_PML4: OnceStatic<InterruptFreeMutex<&'static mut PageTable>> = OnceStatic::new();
@@ -36,6 +50,9 @@ static STRAIGHT_PDS: InterruptFreeMutex<[PageTable; 512]> =
 /// Initialize straight mapping of physical address `0` to virtual address
 /// [`STRAIGHT_PAGE_MAP_BASE`] with size [`STRAIGHT_PAGE_SIZE`] for kernel.
 pub fn init_straight_mapping() {
+    KERNEL_VIRT_BASE.init(VirtualAddress::new(&raw const _kernel_start as _));
+    KERNEL_VIRT_END.init(VirtualAddress::new(&raw const _kernel_end as _));
+
     // Safety: CR3 is always valid as a pointer of PageTable because if not, processor does not
     //     work.
     KERNEL_PML4.init(InterruptFreeMutex::new(unsafe {
@@ -52,6 +69,7 @@ pub fn init_straight_mapping() {
             .next_addr()
     };
     KERNEL_PHYS_BASE.init(kernel_phys_base);
+    KERNEL_PHYS_END.init(KERNEL_VIRT_END.addr - KERNEL_VIRT_BASE.addr + kernel_phys_base);
 
     // Initialize 512 x 512 x 2 MiB straight mapping.
     for (i, (pdp_entry, pd)) in STRAIGHT_PDPT
@@ -106,9 +124,7 @@ pub fn virt_to_phys(addr: impl Into<VirtualAddress>) -> Option<u64> {
         .contains(&addr)
     {
         Some(addr - STRAIGHT_PAGE_MAP_BASE.addr)
-    } else if (KERNEL_VIRT_BASE.addr..=u64::MAX).contains(&addr) {
-        // FIXME: This returns Some() even thought there is no mapping. We should get the end of
-        //        kernel address to avoid it.
+    } else if (KERNEL_VIRT_BASE.addr..KERNEL_VIRT_END.addr).contains(&addr) {
         Some(addr - KERNEL_VIRT_BASE.addr + KERNEL_PHYS_BASE.get())
     } else {
         None
