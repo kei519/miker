@@ -60,7 +60,7 @@ pub fn wait_for_msec(msec: u32) {
 
     let pm_tmr_blk_port = fadt.pm_tmr_blk as _;
     let start = asmfunc::io_in(pm_tmr_blk_port);
-    let end = start + (PM_TIMER_FREQ * msec as u64 / 1000) as u32;
+    let end = start.wrapping_add((PM_TIMER_FREQ * msec as u64 / 1000) as _);
     let end = if pm_timer_32 { end } else { end.get_bits(..24) };
 
     if end < start {
