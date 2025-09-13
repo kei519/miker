@@ -21,7 +21,7 @@ macro_rules! error {
     };
 }
 
-/// Not pecified error type.
+/// Non-specified error type.
 #[derive(Debug)]
 pub struct PhantomError;
 
