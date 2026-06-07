@@ -22,6 +22,8 @@ KERNEL_NAME = "kernel"
 KERNEL_TARGET = "x86_64-unknown-none"
 KERNEL_PATH = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${KERNEL_TARGET}/debug/${KERNEL_NAME}"
 
+QEMU_OVMF_CODE = "${OVMF_CODE:-/usr/share/OVMF/OVMF_CODE.fd}"
+
 [tasks.default]
 alias = "make-image-release"
 
@@ -55,7 +57,7 @@ fi
 if [[ -v on_mac ]]; then
     OPTIONS="-drive if=pflash,format=raw,readonly=on,file=/usr/local/share/OVMF-X64/OVMF_CODE-pure-efi.fd "
 else
-    OPTIONS="-drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE.fd "
+    OPTIONS="-drive if=pflash,format=raw,readonly=on,file=${QEMU_OVMF_CODE} "
 fi
 
 # REVIEW: We use "max" as cpu here, but we don't know this is really required.
@@ -131,7 +133,7 @@ script = '''
 
 if [[ -v MAKE_USB ]]; then
     DISK_IMG="$1:"
-    sudo /bin/mount -o uid="${UID}",gid=$(id -g $(whoami)) -t drvfs "${DISK_IMG}" "${MOUNT_POINT}"
+    sudo mount -o uid="${UID}",gid=$(id -g $(whoami)) -t drvfs "${DISK_IMG}" "${MOUNT_POINT}"
     rm -rf ${MOUNT_POINT}/*
 else
     qemu-img create -f raw "${DISK_IMG}" 200M
@@ -197,7 +199,7 @@ if [ $(uname) = "Darwin" ]; then
         hdiutil detach "${MOUNT_POINT}"
     fi
 else
-    if /usr/bin/mount | grep "${MOUNT_POINT}"; then
+    if mount | grep "${MOUNT_POINT}"; then
         sudo umount "${MOUNT_POINT}"
     fi
 fi
