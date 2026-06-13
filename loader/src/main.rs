@@ -243,7 +243,7 @@ unsafe fn get_protocol<P: Protocol>(
     st: &SystemTable<Boot>,
     handle: Handle,
     agent: Handle,
-) -> Result<ScopedProtocol<P>, MyError> {
+) -> Result<ScopedProtocol<'_, P>, MyError> {
     let params = OpenProtocolParams {
         handle,
         agent,

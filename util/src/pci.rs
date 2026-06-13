@@ -613,7 +613,7 @@ mod _alloc {
         }
 
         /// Returns the collection of the PCI configuration spaces.
-        pub fn valid_bfds_and_classes(&self) -> BfdsAndClasses {
+        pub fn valid_bfds_and_classes(&self) -> BfdsAndClasses<'_> {
             BfdsAndClasses {
                 configs: self,
                 bus: 0,
