@@ -947,7 +947,7 @@ pub struct Tfd {
 
 /// Represents task file status register.
 #[bitfield(bits = 8)]
-#[derive(Debug, BitfieldSpecifier)]
+#[derive(Debug, Specifier)]
 pub struct TfdStatus {
     /// Indicates an error during the transfer.
     #[skip(setters)]
