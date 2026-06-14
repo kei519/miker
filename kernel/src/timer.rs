@@ -43,7 +43,7 @@ pub fn init() -> Result<()> {
 pub fn _int_handler_timer(prev_ctx: &Context) {
     let current = COUNT.fetch_add(1, Relaxed) + 1;
     apic::notify_end_of_interrupt();
-    if current % (TIMER_INT_FREQ / TASK_SWITCH_FREQ) as u64 == 0 {
+    if current.is_multiple_of((TIMER_INT_FREQ / TASK_SWITCH_FREQ) as _) {
         // Safety: This is in interrupt handler and IF is not set.
         unsafe { TASK_MANAGER.switch(prev_ctx) };
     }

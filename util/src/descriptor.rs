@@ -428,9 +428,9 @@ impl TSS {
     /// # Arguments
     ///
     /// * `rsps` - A slice of \[rsp0, rsp1, rsp2\] that does not have to contains all. `rspN` is
-    ///            RSP for privilege level `N`.
+    ///   RSP for privilege level `N`.
     /// * `ists` - A slice of \[ists1, ist2, ..., ist7\] that does not have to contains all. `istN`
-    ///            is the interrupt stack table pointers used in a interrupt-gate descriptor.
+    ///   is the interrupt stack table pointers used in a interrupt-gate descriptor.
     pub fn new(rsps: &[u64], ists: &[u64]) -> Self {
         let rsp0 = rsps.first().copied().unwrap_or(0);
         let rsp1 = rsps.get(1).copied().unwrap_or(0);

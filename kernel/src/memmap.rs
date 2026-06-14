@@ -307,7 +307,7 @@ impl PageMap {
     /// # Safety
     ///
     /// - `start` must be the address allocated by [`PageMap::allocated()`] with passing
-    ///     `page_count` as a argument.
+    ///   `page_count` as a argument.
     /// - You can free allocated pages just once.
     /// - You must never access freed pages.
     pub unsafe fn free(&self, start: *mut u8, page_count: usize) {
@@ -339,13 +339,12 @@ impl PageMap {
     pub fn free_pages_count(&self) -> usize {
         let _lock = self.lock.lock();
         let table = unsafe { &*self.table.get() };
-        let ret = table.iter().fold(0, |acc, block| {
+        table.iter().fold(0, |acc, block| {
             acc + block
                 .as_ref()
                 .map(|blk| blk.list_len() * blk.page_count)
                 .unwrap_or(0)
-        });
-        ret
+        })
     }
 
     /// Adds a given block that starts at `block_start` and whose size, in page, is `page_count`
@@ -556,12 +555,12 @@ impl PageMap {
             // and
             // 4. `cur` <- check this!
 
-            if start == cur.start {
-                if let Some(tail) = tail {
-                    tail.next = next;
-                    table[order] = Some(head);
-                    return Some(cur);
-                }
+            if start == cur.start
+                && let Some(tail) = tail
+            {
+                tail.next = next;
+                table[order] = Some(head);
+                return Some(cur);
             }
             *tail = Some(cur);
             tail = &mut tail.as_mut().unwrap().next;

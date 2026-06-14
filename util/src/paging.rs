@@ -352,7 +352,7 @@ impl PageEntry {
     ///
     /// Even if the next structure is page, returns as [PageTable]. You can access it as byte
     /// string with [`PageTable::as_ref`] or [`PageTable::as_mut`].
-    pub fn next_mut(&self) -> Option<&mut PageTable> {
+    pub fn next_mut(&mut self) -> Option<&mut PageTable> {
         let next = unsafe { self.next_addr() };
         if next == 0 || !self.present() {
             None

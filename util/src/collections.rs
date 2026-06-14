@@ -193,17 +193,15 @@ impl<K: Hash + Eq, V> HashMap<K, V> {
 
     /// Rehash the map.
     fn rehash(&mut self) {
-        let mut cap = self.capacity();
-        // When not initialized.
-        if cap == 0 {
-            cap = Self::INIT_CAP as _
-        } else {
-            // Keep ratio below `LOW_LIMIT`.
-            while self.used * 100 / cap >= Self::LOW_LIMIT {
-                cap *= 2;
+        let new_cap = match self.capacity() {
+            // When not initialized.
+            0 => Self::INIT_CAP,
+            cap => {
+                // Keep ratio below `LOW_LIMIT`.
+                let required_cap = self.used * 100 / Self::LOW_LIMIT + 1;
+                required_cap.next_power_of_two().max(cap)
             }
         };
-        let new_cap = cap;
 
         let new_buckets = (0..new_cap).map(|_| Bucket::None).collect();
         let old_buckets = mem::replace(&mut self.buckets, new_buckets);
