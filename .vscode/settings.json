@@ -1,0 +1,16 @@
+{
+    "rust-analyzer.check.invocationStrategy": "per_workspace",
+    "rust-analyzer.check.overrideCommand": [
+        "cargo",
+        "make",
+        "clippy",
+        "--message-format=json"
+    ],
+    "rust-analyzer.cargo.buildScripts.invocationStrategy": "per_workspace",
+    "rust-analyzer.cargo.buildScripts.overrideCommand": [
+        "cargo",
+        "make",
+        "clippy",
+        "--message-format=json"
+    ]
+}
