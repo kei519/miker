@@ -11,6 +11,7 @@ pub mod memmap;
 pub mod paging;
 pub mod screen;
 pub mod sync;
+pub mod syscall;
 pub mod task;
 pub mod timer;
 
