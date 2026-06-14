@@ -369,7 +369,7 @@ fn restore_context(next: &Context) {
     unsafe { _restore_context(next) };
 }
 
-unsafe extern "sysv64" {
+unsafe extern "C" {
     fn _switch_context(next: &Context, current: &mut Context);
     fn _restore_context(next: &Context);
 }

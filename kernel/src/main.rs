@@ -47,7 +47,11 @@ _start:
 static TSS: OnceStatic<descriptor::TSS> = OnceStatic::new();
 
 #[unsafe(no_mangle)]
-fn main(fb_info: &FrameBufferInfo, memmap: &'static mut MemoryMap, runtime: SystemTable<Runtime>) {
+extern "efiapi" fn main(
+    fb_info: &FrameBufferInfo,
+    memmap: &'static mut MemoryMap,
+    runtime: SystemTable<Runtime>,
+) {
     // Safety: There is one processor running and this is the first time to initialize.
     //   There is only `fb_info` that uses first half parts of virtual address. So, all we have to
     //   do is just mapping it properly.

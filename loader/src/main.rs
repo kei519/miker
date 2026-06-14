@@ -226,7 +226,21 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
     // Set new PML4.
     asmfunc::set_cr3(new_pml4 as *const _ as _);
 
-    type EntryFn = extern "sysv64" fn(&FrameBufferInfo, &mut MemoryMap, SystemTable<Runtime>) -> !;
+    #[cfg(any(
+        target_arch = "x86",
+        target_arch = "x86_64",
+        target_arch = "arm",
+        target_arch = "aarch64",
+    ))]
+    type EntryFn = extern "efiapi" fn(&FrameBufferInfo, &mut MemoryMap, SystemTable<Runtime>) -> !;
+    #[cfg(all(
+        not(target_arch = "x86"),
+        not(target_arch = "x86_64"),
+        not(target_arch = "arm"),
+        not(target_arch = "aarch64"),
+    ))]
+    type EntryFn = extern "C" fn(&FrameBufferInfo, &mut MemoryMap, SystemTable<Runtime>) -> !;
+
     let kernel_entry: EntryFn = transmute(elf_header.entry);
     kernel_entry(&fb_info, &mut memmap, runtime_services);
 }

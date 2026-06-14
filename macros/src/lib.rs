@@ -164,16 +164,15 @@ pub fn interrupt_handler(args: TokenStream, input: TokenStream) -> TokenStream {
     let output_type = &func.sig.output;
     let func_ident = &func.sig.ident;
 
-    // Accept non-specified and compatible with sysv64 ABI. (On Unix system, C and sysv64 ABI are
-    // the same.)
-    // We add sysv64 ABI when not specified, then reqest ABI checking to the compiler. Check the
+    // Accept non-specified and compatible with C ABI.
+    // We add C ABI when not specified, then reqest ABI checking to the compiler. Check the
     // end of the function.
     if func.sig.abi.is_none() {
         func.sig.abi = Some(Abi {
             extern_token: Extern {
                 span: func.sig.span(),
             },
-            name: Some(LitStr::new("sysv64", func.sig.span())),
+            name: Some(LitStr::new("C", func.sig.span())),
         })
     }
     let abi = func.sig.abi.as_ref().unwrap();
@@ -182,13 +181,13 @@ pub fn interrupt_handler(args: TokenStream, input: TokenStream) -> TokenStream {
     let func_type_check = if receive_error_code {
         quote_spanned! { func.span() =>
         const _:
-            #unsafety extern "sysv64" fn(&::util::interrupt::InterruptFrame, u64) #output_type =
+            #unsafety extern "C" fn(&::util::interrupt::InterruptFrame, u64) #output_type =
             #func_ident as #unsafety #abi fn(#(#inputs_types),*) #output_type;
         }
     } else {
         quote_spanned! { func.span() =>
         const _:
-            #unsafety extern "sysv64" fn(&::util::interrupt::InterruptFrame) #output_type =
+            #unsafety extern "C" fn(&::util::interrupt::InterruptFrame) #output_type =
             #func_ident as #unsafety #abi fn(#(#inputs_types),*) #output_type;
         }
     };
@@ -196,7 +195,7 @@ pub fn interrupt_handler(args: TokenStream, input: TokenStream) -> TokenStream {
     let ret = quote! {
         #func_type_check
 
-        unsafe extern "sysv64" {
+        unsafe extern "C" {
             fn #old_ident();
         }
         ::core::arch::global_asm!(#caller_asm_code);

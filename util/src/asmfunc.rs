@@ -171,7 +171,7 @@ pub fn set_cs_ss(cs: u16, ss: u16) {
     unsafe { _set_cs_ss(cs, ss) };
 }
 
-unsafe extern "sysv64" {
+unsafe extern "C" {
     fn _set_cs_ss(cs: u16, ss: u16);
 }
 

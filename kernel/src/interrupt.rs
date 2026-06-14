@@ -17,7 +17,7 @@ macro_rules! fault_handler_no_error {
     ($name:ident) => {
         paste::paste! {
             #[util::interrupt_handler]
-            fn [<int_handler_ $name:lower>](frame: &util::interrupt::InterruptFrame) {
+            extern "C" fn [<int_handler_ $name:lower>](frame: &util::interrupt::InterruptFrame) {
                 use core::fmt::Write as _;
                 use util::graphics::GrayscalePrint as _;
 
@@ -46,7 +46,7 @@ macro_rules! fault_handler_with_error {
     ($name:ident) => {
         paste::paste! {
             #[util::interrupt_handler]
-            fn [<int_handler_ $name:lower>](frame: &util::interrupt::InterruptFrame, error_code: u64) {
+            extern "C" fn [<int_handler_ $name:lower>](frame: &util::interrupt::InterruptFrame, error_code: u64) {
                 use core::fmt::Write as _;
                 use util::graphics::GrayscalePrint as _;
 
@@ -177,12 +177,13 @@ fault_handler_no_error!(MC);
 fault_handler_no_error!(XM);
 fault_handler_no_error!(VE);
 
-unsafe extern "sysv64" {
+unsafe extern "C" {
     /// Saves context before interrupt, and call [`_int_handler_tiemr`] with an argument, the
     /// reference to the context.
     fn int_handler_timer();
 }
 
+#[cfg(target_arch = "x86_64")]
 global_asm! { r#"
 .global int_handler_timer
 int_handler_timer:
