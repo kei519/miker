@@ -151,6 +151,35 @@ unsafe extern "sysv64" {
     fn _set_cs_ss(cs: u16, ss: u16);
 }
 
+/// Read TSC (Time Stamp Counter).
+pub fn rdtsc() -> u64 {
+    let eax: u32;
+    let edx: u32;
+    unsafe {
+        asm!(
+            "rdtsc",
+            out("eax") eax,
+            out("edx") edx,
+        )
+    };
+    eax as u64 | (edx as u64) << 32
+}
+
+/// Read TSC in-order.
+pub fn rdtsc_ordered() -> u64 {
+    let eax: u32;
+    let edx: u32;
+    unsafe {
+        asm!(
+            "rdtsc",
+            out("eax") eax,
+            out("edx") edx,
+            out("ecx") _,
+        )
+    };
+    eax as u64 | (edx as u64) << 32
+}
+
 global_asm! {r#"
 .global _set_cs_ss
 _set_cs_ss:

@@ -11,7 +11,7 @@ use crate::{
 /// Timer interrupt frequency in Hz.
 // NOTE: It should be greater than `TASK_SWITCH_FREQ`. Otherwise, some task swithing would be
 //       skiped.
-pub const TIMER_INT_FREQ: u32 = 100;
+pub const TIMER_INT_FREQ: u32 = 1000;
 
 /// Task swithing frequency in Hz.
 pub const TASK_SWITCH_FREQ: u32 = 5;
@@ -23,6 +23,10 @@ const PM_TIMER_FREQ: u64 = 3579545;
 pub static APIC_TIMER_FREQ: OnceStatic<u32> = OnceStatic::new();
 
 static COUNT: AtomicU64 = AtomicU64::new(0);
+
+static PREV_INT_TSC: AtomicU64 = AtomicU64::new(0);
+
+static CURRENT_INT_TSC: AtomicU64 = AtomicU64::new(0);
 
 pub fn init() -> Result<()> {
     apic::set_divide_config(0);
@@ -42,10 +46,31 @@ pub fn init() -> Result<()> {
 #[unsafe(no_mangle)]
 pub fn _int_handler_timer(prev_ctx: &Context) {
     let current = COUNT.fetch_add(1, Relaxed) + 1;
+    PREV_INT_TSC.store(CURRENT_INT_TSC.load(Relaxed), Relaxed);
+    CURRENT_INT_TSC.store(asmfunc::rdtsc(), Relaxed);
     apic::notify_end_of_interrupt();
     if current.is_multiple_of((TIMER_INT_FREQ / TASK_SWITCH_FREQ) as _) {
         // Safety: This is in interrupt handler and IF is not set.
         unsafe { TASK_MANAGER.switch(prev_ctx) };
+    }
+}
+
+pub fn get_timestamp() -> u64 {
+    // NOTE: DO NOT use log crate in this function because logger mod depends on it.
+
+    const TIMER_INTERVAL_NANO: u64 = 1_000_000_000 / TIMER_INT_FREQ as u64;
+
+    let current_tsc = asmfunc::rdtsc();
+    let current_count = COUNT.load(Relaxed);
+    let current_int_tsc = CURRENT_INT_TSC.load(Relaxed);
+    let prev_int_tsc = PREV_INT_TSC.load(Relaxed);
+
+    if prev_int_tsc == 0 {
+        current_count * TIMER_INTERVAL_NANO
+    } else {
+        current_count * TIMER_INTERVAL_NANO
+            + (current_tsc - current_int_tsc) * TIMER_INTERVAL_NANO
+                / (current_int_tsc - prev_int_tsc)
     }
 }
 
