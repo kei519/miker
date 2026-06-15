@@ -131,13 +131,37 @@ pub fn io_in(port: u16) -> u32 {
     ret
 }
 
-/// Outpu 32 bits to I/O port in `port`.
+/// Input 8 bits from I/O port in `port`.
+pub fn io_inb(port: u16) -> u8 {
+    let ret;
+    unsafe {
+        asm!(
+            "in al, dx",
+            in("dx") port,
+            out("al") ret,
+        )
+    };
+    ret
+}
+
+/// Output 32 bits to I/O port in `port`.
 pub fn io_out(port: u16, value: u32) {
     unsafe {
         asm!(
             "out dx, eax",
             in("dx") port,
             in("eax") value,
+        )
+    };
+}
+
+/// Output 8 bits to I/O port in `port`.
+pub fn io_outb(port: u16, value: u8) {
+    unsafe {
+        asm!(
+            "out dx, al",
+            in("dx") port,
+            in("al") value,
         )
     };
 }

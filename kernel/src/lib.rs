@@ -6,6 +6,7 @@
 pub mod acpi;
 pub mod driver;
 pub mod interrupt;
+pub mod logger;
 pub mod memmap;
 pub mod paging;
 pub mod screen;

@@ -61,7 +61,8 @@ fi
 # REVIEW: We use "max" as cpu here, but we don't know this is really required.
 OPTIONS+="-drive if=pflash,format=raw,file=${OVMF_VARS} \
     -drive if=ide,index=0,media=disk,format=raw,file="${DISK_IMG}" \
-    -monitor stdio \
+    -monitor vc \
+    -serial mon:stdio \
     -machine q35 \
     -cpu max \
     -smp 4 \

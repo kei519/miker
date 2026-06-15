@@ -4,11 +4,14 @@
 #![deny(improper_ctypes)]
 #![deny(improper_ctypes_definitions)]
 
+extern crate alloc;
+
 use kernel::*;
 
 use core::fmt::Write as _;
 
 use alloc::format;
+use log::info;
 use task::TASK_MANAGER;
 use uefi::table::{Runtime, SystemTable, boot::MemoryMap};
 use util::{
@@ -60,8 +63,10 @@ fn main(fb_info: &FrameBufferInfo, memmap: &'static mut MemoryMap, runtime: Syst
     match main2(runtime) {
         Ok(_) => unreachable!(),
         Err(e) => {
+            let msg = format!("{}", e);
+            log::error!("{}", msg);
             let mut screen = Screen::new(FB_INFO.as_ref().clone());
-            screen.print_str(&format!("{}", e), (0, 0));
+            screen.print_str(&msg, (0, 0));
             loop {
                 asmfunc::hlt();
             }
@@ -71,6 +76,9 @@ fn main(fb_info: &FrameBufferInfo, memmap: &'static mut MemoryMap, runtime: Syst
 
 // NOTE: Never return `Ok()`.
 fn main2(runtime: SystemTable<Runtime>) -> Result<()> {
+    logger::init()?;
+    info!("===== main2 started =====");
+
     let stack_for_timer_interrupt = PAGE_MAP.allocate(2);
     if stack_for_timer_interrupt.is_null() {
         panic!("Failed to allocate 2 pages");
