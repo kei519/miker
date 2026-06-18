@@ -1,9 +1,12 @@
 //! Provides drivers for the kernel.
 
-use util::driver::AhciConfig;
 use util::error;
-use util::pci::Capability;
-use util::{error::Result, pci::ConfigSpaces, sync::OnceStatic};
+use util::{
+    driver::AhciConfig,
+    error::Result,
+    pci::{Capability, ConfigSpaces},
+    sync::OnceStatic,
+};
 
 use crate::acpi::MMIO_PHYS_BASE;
 use crate::printkln;
