@@ -38,6 +38,9 @@ use util::{
 /// kernel path in the boot device.
 const KERNEL_PATH: &CStr16 = cstr16!("\\kernel");
 
+/// Primitive OS services path in the boot device.
+const SERVICES_DIR: &CStr16 = cstr16!("\\services");
+
 /// Converts [Error] to [MyError].
 macro_rules! error {
     ($err:expr) => {{
@@ -74,6 +77,53 @@ unsafe fn actual_main(image: Handle, st: SystemTable<Boot>) -> Result<(), MyErro
     let mut root_dir = get_protocol::<SimpleFileSystem>(&st, loaded_handle, image)?
         .open_volume()
         .map_err(|e| error!(e))?;
+
+    // Load primitive OS services
+    let services_dir_handle = root_dir
+        .open(SERVICES_DIR, FileMode::Read, FileAttribute::empty())
+        .map_err(|e| error!(e))?;
+    let FileType::Dir(mut serivces_dir) = services_dir_handle.into_type().map_err(|e| error!(e))?
+    else {
+        println!("{} is a file", SERVICES_DIR);
+        return Err(error!(Error::new(Status::NOT_FOUND, ())));
+    };
+    let mut buf = [0; 1024];
+    while let Some(file_info) = serivces_dir
+        .read_entry(&mut buf)
+        .map_err(|_| error!(Error::new(Status::BUFFER_TOO_SMALL, ())))?
+    {
+        if !file_info.is_regular_file() {
+            continue;
+        }
+        let mut file = serivces_dir
+            .open(
+                file_info.file_name(),
+                FileMode::Read,
+                FileAttribute::empty(),
+            )
+            .map_err(|e| error!(e))?
+            .into_regular_file()
+            .unwrap();
+        let num_pages = file_info.physical_size().div_ceil(PAGE_SIZE as _);
+        let file_buf_addr = st
+            .boot_services()
+            .allocate_pages(
+                AllocateType::AnyPages,
+                MemoryType::LOADER_DATA,
+                num_pages as _,
+            )
+            .map_err(|e| error!(e))?;
+        let file_buf = unsafe {
+            slice::from_raw_parts_mut(file_buf_addr as *mut u8, file_info.physical_size() as _)
+        };
+        let len = file.read(file_buf).map_err(|e| error!(e))?;
+        println!(
+            "read {} to {:p} ({} bytes)",
+            file_info.file_name(),
+            file_buf.as_ptr(),
+            len
+        );
+    }
 
     // Get the kernel file handle.
     let kernel_handle = root_dir
