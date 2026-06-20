@@ -18,3 +18,6 @@ panic = "abort"
 [profile.release]
 strip = "symbols"
 panic = "abort"
+
+[workspace.dependencies]
+uefi = "0.29.0"

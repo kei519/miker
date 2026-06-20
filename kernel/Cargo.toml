@@ -14,5 +14,5 @@ bench = false
 [dependencies]
 log = "0.4.32"
 paste = "*"
-uefi = "*"
+uefi = { workspace = true }
 util = { path = "../util", features = ["alloc"] }
