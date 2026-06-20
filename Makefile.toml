@@ -24,6 +24,13 @@ KERNEL_PATH = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${KERNEL_TARGET}/debug/${KER
 
 QEMU_OVMF_CODE = "${OVMF_CODE:-/usr/share/OVMF/OVMF_CODE.fd}"
 
+SERVICES = [
+    "init",
+]
+SERVICES_DIR = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${KERNEL_TARGET}/debug"
+
+FOO = ["foo", "bar", "buz"]
+
 [tasks.default]
 alias = "make-image-release"
 
@@ -156,6 +163,12 @@ cp "${LOADER_PATH}" "${LOADER_DEPLOY_PATH}"
 KERNEL_DEPLOY_PATH="${MOUNT_POINT}/kernel"
 cp "${KERNEL_PATH}" "${KERNEL_DEPLOY_PATH}"
 
+SERVICES_DEPLOY_DIR="${MOUNT_POINT}/services"
+mkdir -p "${SERVICES_DEPLOY_DIR}"
+for SERVICE in $(echo "${SERVICES}" | tr ';' '\0' | xargs -0 echo); do
+    cp "${SERVICES_DIR}/${SERVICE}" "${SERVICES_DEPLOY_DIR}"
+done
+
 sleep 0.5
 '''
 
@@ -166,6 +179,7 @@ dependencies = ["member-release"]
 [tasks.make-image-release-without-umount.env]
 LOADER_PATH = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${LOADER_TARGET}/release/${LOADER_NAME}.efi"
 KERNEL_PATH = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${KERNEL_TARGET}/release/${KERNEL_NAME}"
+SERVICES_DIR = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/${KERNEL_TARGET}/release/"
 
 [tasks.check-ovmf_vars]
 private = true
