@@ -12,5 +12,5 @@ test = false
 bench = false
 
 [dependencies]
-uefi = "*"
+uefi = { workspace = true }
 util = { path = "../util" }
