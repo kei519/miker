@@ -1,0 +1,24 @@
+[config]
+skip_core_tasks = true
+skip_git_env_info = true
+skip_rust_env_info = true
+skip_crate_env_info = true
+
+[env]
+CONFIG_PATH = "./.cargo/config.toml"
+
+[tasks.release]
+command = "cargo"
+args = ["build", "--release", "--config", "${CONFIG_PATH}"]
+
+[tasks.build]
+command = "cargo"
+args = ["build", "--config", "${CONFIG_PATH}"]
+
+[tasks.check]
+command = "cargo"
+args = ["check", "--target=${KERNEL_TARGET}", "${@}"]
+
+[tasks.clippy]
+command = "cargo"
+args = ["clippy", "--target=${KERNEL_TARGET}", "${@}"]

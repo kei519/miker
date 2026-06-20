@@ -1,0 +1,12 @@
+[package]
+name = "init"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+readme.workspace = true
+
+[[bin]]
+name = "init"
+test = false
+bench = false

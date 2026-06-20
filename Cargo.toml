@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["kernel", "loader", "macros", "util"]
+members = ["init","kernel", "loader", "macros", "util"]
 
 [workspace.package]
 version = "0.0.0"
