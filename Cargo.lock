@@ -352,6 +352,7 @@ dependencies = [
  "custom_debug",
  "macros",
  "modular-bitfield",
+ "uefi",
 ]
 
 [[package]]

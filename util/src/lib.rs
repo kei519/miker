@@ -15,6 +15,7 @@ pub mod acpi;
 pub mod apic;
 pub mod asmfunc;
 pub mod bitfield;
+pub mod boot;
 pub mod buffer;
 pub mod descriptor;
 pub mod driver;
