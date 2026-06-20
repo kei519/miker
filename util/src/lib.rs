@@ -21,6 +21,7 @@ pub mod driver;
 pub mod elf;
 pub mod graphics;
 pub mod interrupt;
+pub mod loader;
 pub mod paging;
 pub mod pci;
 pub mod screen;
