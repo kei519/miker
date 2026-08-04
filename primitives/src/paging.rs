@@ -1,5 +1,7 @@
 //! Provides the abilities associated with paging.
 
+use crate::{PhysAddr, VirtAddr};
+
 /// Represents an access right to a page.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AccessRight {
@@ -67,4 +69,19 @@ impl PageAttributes {
             cache: CachePolicy::Normal,
         }
     }
+}
+
+/// Provides an ability to convert a physical address into a virtual address.
+pub trait PhysToVirt: Send + Sync {
+    /// Converts a physical address into a virtual address.
+    fn phys_to_virt(&self, phys: PhysAddr) -> Option<VirtAddr>;
+}
+
+/// Provides an allocator for a physical frame. It is intended to be used to allocate a page frame
+/// for a new page table.
+pub trait PageFrameAllocator: Send + Sync {
+    /// Allocates a new page frame.
+    fn alloc(&self) -> Option<PhysAddr>;
+    /// Deallocates a page frame.
+    fn dealloc(&self, addr: PhysAddr);
 }
