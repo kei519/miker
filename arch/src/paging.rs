@@ -29,20 +29,20 @@ impl<T: PhysToVirt> PageMapper<T> {
         frame: PageFrame<S>,
         page: Page<S>,
         attributes: PageAttributes,
-        count: usize,
         allocator: &A,
     ) -> Result<Page<S>, MapError>
     where
         A: PageFrameAllocator,
         S: PageSize + sealed::PageSize,
     {
-        self.0.map(frame, page, attributes, count, allocator)
+        self.0.map(frame, page, attributes, allocator)
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum MapError {
     AlreadyMapped,
+    CannotAccess,
 }
 
 mod sealed {

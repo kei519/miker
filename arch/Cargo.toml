@@ -7,6 +7,9 @@ description.workspace = true
 readme.workspace = true
 
 [dependencies]
+arbitrary-int = "2.2.0"
+bitbybit = "2.0.1"
+bitops = { path = "../bitops" }
 primitives = { path = "../primitives" }
 
 [lints]
