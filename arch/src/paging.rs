@@ -46,5 +46,5 @@ pub enum MapError {
 }
 
 mod sealed {
-    pub trait PageSize {}
+    pub trait PageSize: primitives::PageSize {}
 }

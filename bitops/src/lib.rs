@@ -86,13 +86,19 @@ macro_rules! impl_bit_ops {
                 $mod::get_bits(*self, start, end)
             }
 
-            fn set_bit(&mut self, bit: u32, value: bool) {
+            fn set_bit(&mut self, bit: u32, value: bool) -> &mut Self {
                 *self = $mod::set_bit(*self, bit, value);
+                self
             }
 
-            fn set_bits(&mut self, bits: impl core::ops::RangeBounds<u32>, value: Self) {
+            fn set_bits(
+                &mut self,
+                bits: impl core::ops::RangeBounds<u32>,
+                value: Self,
+            ) -> &mut Self {
                 let (start, end) = $crate::parse_bounds(bits, Self::BITS);
                 *self = $mod::set_bits(*self, start, end, value);
+                self
             }
         }
     };
@@ -117,9 +123,9 @@ pub trait BitOps {
     /// Retunrs `self`'s `bits` range bit value.
     fn get_bits(&self, bits: impl RangeBounds<u32>) -> Self;
     /// If `value` is `true`, sets `self`'s `bit`-th bit. Otherwise, unsets.
-    fn set_bit(&mut self, bit: u32, value: bool);
+    fn set_bit(&mut self, bit: u32, value: bool) -> &mut Self;
     /// Change `self`'s `bits` range bit to `value`.
-    fn set_bits(&mut self, bits: impl RangeBounds<u32>, value: Self);
+    fn set_bits(&mut self, bits: impl RangeBounds<u32>, value: Self) -> &mut Self;
 }
 
 fn parse_bounds(bounds: impl RangeBounds<u32>, width: u32) -> (u32, u32) {
