@@ -6,6 +6,9 @@ authors.workspace = true
 description.workspace = true
 readme.workspace = true
 
+[package.metadata.miker]
+target = "uefi"
+
 [dependencies]
 uefi = "0.41.0"
 
