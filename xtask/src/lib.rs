@@ -6,6 +6,7 @@ use crate::{commands::Command, common::Arch};
 
 mod commands;
 mod common;
+mod config;
 
 /// Provide automations for miker.
 #[derive(Debug, Parser)]

@@ -1,11 +1,12 @@
-use std::{
-    io::Result,
-    process::{Command, ExitCode},
-};
+use std::process::{Command, ExitCode};
 
+use anyhow::Result;
 use clap::{Parser, ValueEnum};
 
-use crate::common::Arch;
+use crate::{
+    common::Arch,
+    config::{self, BuildConfig, PackageMetadata},
+};
 
 #[derive(Debug, Default, Clone, Copy, clap::ValueEnum)]
 pub enum MessageFormat {
@@ -70,13 +71,25 @@ impl Check {
     fn run_impl(self) -> Result<ExitCode> {
         let mut exitcode = ExitCode::SUCCESS;
 
-        for package in ["bootloader", "xtask"] {
+        let cargo_metadata = config::metadata()?;
+        let build_config = BuildConfig::from_root(&cargo_metadata.workspace_root)?;
+
+        for package in cargo_metadata.workspace_packages() {
+            let package_metadata = PackageMetadata::from_package(package)?;
+
             let mut cmd = Command::new("cargo");
             cmd.args([
                 "check",
-                &format!("--package={package}"),
+                &format!("--package={}", package.name),
                 &format!("--message-format={}", self.message_format),
             ]);
+
+            if let Some(option) = build_config
+                .resolve(self.arch, package_metadata.target)?
+                .option_for_cargo()
+            {
+                cmd.arg(option);
+            }
 
             if self.keep_going {
                 cmd.arg("--keep-going");

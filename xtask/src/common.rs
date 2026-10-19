@@ -1,6 +1,10 @@
 use clap::ValueEnum;
+use serde::Deserialize;
 
-#[derive(Debug, Default, Clone, Copy, ValueEnum)]
+#[derive(
+    Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, ValueEnum,
+)]
+#[serde(rename_all = "lowercase")]
 #[value(rename_all = "lower")]
 pub enum Arch {
     AArch64,
