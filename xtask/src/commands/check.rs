@@ -1,30 +1,14 @@
 use std::process::Command;
 
 use anyhow::Result;
-use clap::{Parser, ValueEnum};
+use clap::Parser;
 
 use crate::{
     Status,
     common::Arch,
+    common::MessageFormat,
     config::{self, BuildConfig, PackageMetadata},
 };
-
-#[derive(Debug, Default, Clone, Copy, clap::ValueEnum)]
-pub enum MessageFormat {
-    #[default]
-    Human,
-    Short,
-    Json,
-    JsonDiagnosticShort,
-    JsonDiagnosticRenderedAnsi,
-    JsonRenderDiagnostic,
-}
-
-impl std::fmt::Display for MessageFormat {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.to_possible_value().unwrap().get_name().fmt(f)
-    }
-}
 
 /// Check all packages in miker for proper targets derived from specified architecture.
 ///

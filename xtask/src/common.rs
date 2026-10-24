@@ -32,3 +32,20 @@ impl std::fmt::Display for Arch {
         self.to_possible_value().unwrap().get_name().fmt(f)
     }
 }
+
+#[derive(Debug, Default, Clone, Copy, ValueEnum)]
+pub enum MessageFormat {
+    #[default]
+    Human,
+    Short,
+    Json,
+    JsonDiagnosticShort,
+    JsonDiagnosticRenderedAnsi,
+    JsonRenderDiagnostic,
+}
+
+impl std::fmt::Display for MessageFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.to_possible_value().unwrap().get_name().fmt(f)
+    }
+}
