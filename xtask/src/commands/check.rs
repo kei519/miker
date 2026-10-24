@@ -1,9 +1,10 @@
-use std::process::{Command, ExitCode};
+use std::process::Command;
 
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
 
 use crate::{
+    Status,
     common::Arch,
     config::{self, BuildConfig, PackageMetadata},
 };
@@ -58,18 +59,8 @@ pub struct Check {
 }
 
 impl Check {
-    pub fn run(self) -> ExitCode {
-        match self.run_impl() {
-            Ok(code) => code,
-            Err(e) => {
-                eprintln!("Failed to check: {e}");
-                1.into()
-            }
-        }
-    }
-
-    fn run_impl(self) -> Result<ExitCode> {
-        let mut exitcode = ExitCode::SUCCESS;
+    pub fn run(self) -> Result<Status> {
+        let mut status = Status::Success;
 
         let cargo_metadata = config::metadata()?;
         let build_config = BuildConfig::from_root(&cargo_metadata.workspace_root)?;
@@ -101,19 +92,15 @@ impl Check {
                 cmd.arg("--locked");
             }
 
-            let status = cmd.status()?;
-            if !status.success() {
-                exitcode = status
-                    .code()
-                    .map(|code| ExitCode::from(code.clamp(0, u8::MAX as _) as u8))
-                    .unwrap_or(ExitCode::FAILURE);
+            if !cmd.status()?.success() {
+                status = Status::Failure;
 
                 if !self.keep_going {
-                    return Ok(exitcode);
+                    return Ok(status);
                 }
             }
         }
 
-        Ok(exitcode)
+        Ok(status)
     }
 }

@@ -8,6 +8,11 @@ mod commands;
 mod common;
 mod config;
 
+pub enum Status {
+    Success,
+    Failure,
+}
+
 /// Provide automations for miker.
 #[derive(Debug, Parser)]
 #[command(bin_name = "cargo xtask")]
@@ -26,6 +31,16 @@ pub struct Cli {
 
 impl Cli {
     pub fn run(self) -> ExitCode {
-        self.command.run()
+        self.command
+            .run()
+            .map(|status| match status {
+                Status::Success => 0,
+                Status::Failure => 101,
+            })
+            .unwrap_or_else(|e| {
+                eprintln!("{e:#}");
+                1
+            })
+            .into()
     }
 }

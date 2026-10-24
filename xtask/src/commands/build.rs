@@ -1,9 +1,10 @@
-use std::process::{Command, ExitCode};
+use std::process::Command;
 
 use anyhow::Result;
 use clap::Parser;
 
 use crate::{
+    Status,
     common::Arch,
     config::{self, BuildConfig, PackageMetadata},
 };
@@ -26,15 +27,8 @@ pub struct Build {
 }
 
 impl Build {
-    pub fn run(self) -> ExitCode {
-        self.run_impl().unwrap_or_else(|e| {
-            eprintln!("{e}");
-            ExitCode::FAILURE
-        })
-    }
-
-    pub fn run_impl(self) -> Result<ExitCode> {
-        let mut exitcode = ExitCode::SUCCESS;
+    pub fn run(self) -> Result<Status> {
+        let mut status = Status::Success;
 
         let cargo_metadata = config::metadata()?;
         let build_config = BuildConfig::from_root(&cargo_metadata.workspace_root)?;
@@ -62,19 +56,15 @@ impl Build {
                 cmd.arg("--release");
             }
 
-            let status = cmd.status()?;
-            if !status.success() {
-                exitcode = status
-                    .code()
-                    .map(|code| ExitCode::from(code.clamp(0, u8::MAX as _) as u8))
-                    .unwrap_or(ExitCode::FAILURE);
+            if !cmd.status()?.success() {
+                status = Status::Failure;
 
                 if !self.keep_going {
-                    return Ok(exitcode);
+                    return Ok(status);
                 }
             }
         }
 
-        Ok(exitcode)
+        Ok(status)
     }
 }

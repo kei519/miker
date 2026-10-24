@@ -1,8 +1,10 @@
-use std::process::ExitCode;
-
+use anyhow::Result;
 use clap::Subcommand;
 
-use crate::commands::{build::Build, check::Check};
+use crate::{
+    Status,
+    commands::{build::Build, check::Check},
+};
 
 mod build;
 mod check;
@@ -14,7 +16,7 @@ pub enum Command {
 }
 
 impl Command {
-    pub fn run(self) -> ExitCode {
+    pub fn run(self) -> Result<Status> {
         match self {
             Self::Build(build) => build.run(),
             Self::Check(check) => check.run(),
