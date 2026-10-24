@@ -1,5 +1,37 @@
-[target.x86_64]
+# [build]
+# dir = "build"
+
+[arch.x86_64.target]
 uefi = "x86_64-unknown-uefi"
 
-[target.aarch64]
+# [arch.x86_64.image]
+# image_name = "disk.img"
+# ovmf_vars = "vars.fd"
+
+[[arch.x86_64.image.partition]]
+name = "EFI"
+type = "efi"
+size = 0x80_000
+
+[[arch.x86_64.image.component]]
+name = "bootloader"
+partition = "EFI"
+install = "EFI/BOOT/BOOTX64.EFI"
+
+[arch.aarch64.target]
 uefi = "aarch64-unknown-uefi"
+
+[arch.aarch64.image]
+name = "EFI"
+type = "efi"
+size = 0x80_000
+
+[[arch.aarch64.image.partition]]
+name = "EFI"
+type = "efi"
+size = 0x80_000
+
+[[arch.aarch64.image.component]]
+name = "bootloader"
+partition = "EFI"
+install = "EFI/BOOT/BOOTAA64.EFI"
