@@ -1,8 +1,15 @@
 use std::{collections::BTreeMap, fs::File, io::Read};
 
 use anyhow::{Error, Result, anyhow, bail};
-use cargo_metadata::{Metadata, MetadataCommand, Package, camino::Utf8Path};
-use serde::Deserialize;
+use cargo_metadata::{
+    Metadata, MetadataCommand, Package,
+    camino::{Utf8Path, Utf8PathBuf},
+};
+use gpt::partition_types::Type as PartitionType;
+use serde::{
+    Deserialize, Deserializer,
+    de::{Unexpected, Visitor},
+};
 use serde_json::Value as JsonValue;
 
 use crate::common::Arch;
@@ -81,9 +88,11 @@ pub fn metadata() -> Result<Metadata> {
     MetadataCommand::new().exec().map_err(Error::new)
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Default, Clone, Deserialize)]
+#[serde(default)]
 pub struct MikerConfig {
-    target: TargetMatrix,
+    build: BuildConfig,
+    arch: ArchMatrix,
 }
 
 impl MikerConfig {
@@ -104,10 +113,11 @@ impl MikerConfig {
             return Ok(ResolvedTarget::Host);
         }
 
-        let Some(mapping) = self.target.0.get(&arch) else {
+        let Some(mapping) = self.arch.0.get(&arch) else {
             bail!("There is no config for {}", arch);
         };
         mapping
+            .target
             .0
             .get(&kind)
             .map(|spec| ResolvedTarget::Explicit(spec.0.clone()))
@@ -116,10 +126,105 @@ impl MikerConfig {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-struct TargetMatrix(BTreeMap<Arch, TargetMappings>);
+#[serde(default)]
+struct BuildConfig {
+    build_dir: Utf8PathBuf,
+}
+
+impl Default for BuildConfig {
+    fn default() -> Self {
+        Self {
+            build_dir: "build".into(),
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, Deserialize)]
+#[serde(default)]
+struct ArchMatrix(BTreeMap<Arch, ArchConfig>);
+
+#[derive(Debug, Default, Clone, Deserialize)]
+#[serde(default)]
+struct ArchConfig {
+    target: Targets,
+    image: ImageConfig,
+}
 
 #[derive(Debug, Clone, Deserialize)]
-struct TargetMappings(BTreeMap<TargetKind, TargetSpec>);
+#[serde(default)]
+struct ImageConfig {
+    image_name: String,
+    ovmf_vars: String,
+    partition: Vec<Partition>,
+    component: Vec<Component>,
+}
+
+impl Default for ImageConfig {
+    fn default() -> Self {
+        Self {
+            image_name: "image.disk".into(),
+            ovmf_vars: "vars.fd".into(),
+            partition: vec![],
+            component: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct PartitionName(String);
+
+#[derive(Debug, Clone, Deserialize)]
+struct Partition {
+    name: PartitionName,
+    #[serde(
+        rename = "type",
+        deserialize_with = "Partition::deserialize_partition_type"
+    )]
+    ty: PartitionType,
+    size: u64,
+}
+
+impl Partition {
+    fn deserialize_partition_type<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<PartitionType, D::Error> {
+        use serde::de::Error as _;
+
+        struct TypeVisitor;
+        impl<'d> Visitor<'d> for TypeVisitor {
+            type Value = String;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a partition type name or GUID is required")
+            }
+
+            fn visit_str<E>(self, v: &str) -> std::prelude::v1::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(v.into())
+            }
+        }
+        let name = deserializer.deserialize_str(TypeVisitor)?;
+
+        PartitionType::from_name(&name)
+            .map_err(|e| D::Error::invalid_value(Unexpected::Str(&name), &e.as_str()))
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ComponentName(String);
+
+#[derive(Debug, Clone, Deserialize)]
+struct Component {
+    name: ComponentName,
+    partition: PartitionName,
+    install: Utf8PathBuf,
+}
+
+#[derive(Debug, Default, Clone, Deserialize)]
+#[serde(default)]
+struct Targets(BTreeMap<TargetKind, TargetSpec>);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 struct TargetSpec(String);
