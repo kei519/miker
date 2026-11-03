@@ -2,9 +2,12 @@ use std::process::ExitCode;
 
 use clap::Parser;
 
-use crate::{commands::Command, common::Arch};
+use crate::{command::Command, common::Arch};
 
-mod commands;
+mod build;
+mod check;
+mod clippy;
+mod command;
 mod common;
 mod config;
 

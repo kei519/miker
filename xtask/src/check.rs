@@ -10,8 +10,16 @@ use crate::{
     config::{self, MikerConfig, PackageMetadata},
 };
 
+/// Check all packages in miker for proper targets derived from specified architecture.
+///
+/// This is valid for rust-analyzer check command. When you want to edit packages other than this
+/// xtask, `cargo xtask check --message-format=json --keep-going --all-targets` works well.
+/// Otherwise, set rust-analyzer.check.workspace to false and rust-analyzer.check.extraArgs to
+/// `--package xtask`.
+// TODO: Handle -j option.
+// TODO: Should we Handle --lib, --bins, --tests, --benches and --examples option?
 #[derive(Debug, Clone, Parser)]
-pub struct Clippy {
+pub struct CheckCommand {
     /// Error format.
     #[arg(long, value_enum, default_value_t = Default::default())]
     message_format: MessageFormat,
@@ -34,7 +42,7 @@ pub struct Clippy {
     arch: Arch,
 }
 
-impl Clippy {
+impl CheckCommand {
     pub fn run(self) -> Result<Status> {
         let mut status = Status::Success;
 
@@ -46,7 +54,7 @@ impl Clippy {
 
             let mut cmd = Command::new("cargo");
             cmd.args([
-                "clippy",
+                "check",
                 &format!("--package={}", package.name),
                 &format!("--message-format={}", self.message_format),
             ]);

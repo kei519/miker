@@ -6,14 +6,25 @@ use clap::Parser;
 use crate::{
     Status,
     common::Arch,
+    common::MessageFormat,
     config::{self, MikerConfig, PackageMetadata},
 };
 
 #[derive(Debug, Clone, Parser)]
-pub struct Build {
+pub struct ClippyCommand {
+    /// Error format.
+    #[arg(long, value_enum, default_value_t = Default::default())]
+    message_format: MessageFormat,
+
     /// Do not abort the build as soon as there is an error.
     #[arg(long)]
     keep_going: bool,
+
+    /// Check all targets.
+    ///
+    /// This is equivalent to specifying --lib --bins --tests --benches --examples.
+    #[arg(long)]
+    all_targets: bool,
 
     /// Assert that `Cargo.lock` will remain unchanged.
     #[arg(long)]
@@ -21,12 +32,9 @@ pub struct Build {
 
     #[arg(from_global)]
     arch: Arch,
-
-    #[arg(long)]
-    release: bool,
 }
 
-impl Build {
+impl ClippyCommand {
     pub fn run(self) -> Result<Status> {
         let mut status = Status::Success;
 
@@ -36,8 +44,12 @@ impl Build {
         for package in cargo_metadata.workspace_packages() {
             let package_metadata = PackageMetadata::from_package(package)?;
 
-            let mut cmd = Command::new(env!("CARGO"));
-            cmd.args(["build", &format!("--package={}", package.name)]);
+            let mut cmd = Command::new("cargo");
+            cmd.args([
+                "clippy",
+                &format!("--package={}", package.name),
+                &format!("--message-format={}", self.message_format),
+            ]);
 
             if let Some(option) = build_config
                 .resolve(self.arch, package_metadata.target)?
@@ -49,11 +61,11 @@ impl Build {
             if self.keep_going {
                 cmd.arg("--keep-going");
             }
+            if self.all_targets {
+                cmd.arg("--all-targets");
+            }
             if self.locked {
                 cmd.arg("--locked");
-            }
-            if self.release {
-                cmd.arg("--release");
             }
 
             if !cmd.status()?.success() {
