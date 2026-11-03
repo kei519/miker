@@ -34,6 +34,11 @@ impl BuildCommand {
         let build_config = MikerConfig::from_root(&cargo_metadata.workspace_root)?;
 
         for package in cargo_metadata.workspace_packages() {
+            // Skip cargo-xtask itself
+            if package.name == env!("CARGO_PKG_NAME") {
+                continue;
+            }
+
             let package_metadata = PackageMetadata::from_package(package)?;
 
             let mut cmd = Command::new(env!("CARGO"));
