@@ -6,7 +6,7 @@ use clap::Parser;
 use crate::{
     Status,
     common::Arch,
-    config::{self, BuildConfig, PackageMetadata},
+    config::{self, MikerConfig, PackageMetadata},
 };
 
 #[derive(Debug, Clone, Parser)]
@@ -31,7 +31,7 @@ impl Build {
         let mut status = Status::Success;
 
         let cargo_metadata = config::metadata()?;
-        let build_config = BuildConfig::from_root(&cargo_metadata.workspace_root)?;
+        let build_config = MikerConfig::from_root(&cargo_metadata.workspace_root)?;
 
         for package in cargo_metadata.workspace_packages() {
             let package_metadata = PackageMetadata::from_package(package)?;

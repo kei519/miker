@@ -82,11 +82,11 @@ pub fn metadata() -> Result<Metadata> {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct BuildConfig {
+pub struct MikerConfig {
     target: TargetMatrix,
 }
 
-impl BuildConfig {
+impl MikerConfig {
     pub fn from_root(path: impl AsRef<Utf8Path>) -> Result<Self> {
         Self::from_path(path.as_ref().join("miker.toml"))
     }

@@ -7,7 +7,7 @@ use crate::{
     Status,
     common::Arch,
     common::MessageFormat,
-    config::{self, BuildConfig, PackageMetadata},
+    config::{self, MikerConfig, PackageMetadata},
 };
 
 /// Check all packages in miker for proper targets derived from specified architecture.
@@ -47,7 +47,7 @@ impl Check {
         let mut status = Status::Success;
 
         let cargo_metadata = config::metadata()?;
-        let build_config = BuildConfig::from_root(&cargo_metadata.workspace_root)?;
+        let build_config = MikerConfig::from_root(&cargo_metadata.workspace_root)?;
 
         for package in cargo_metadata.workspace_packages() {
             let package_metadata = PackageMetadata::from_package(package)?;
