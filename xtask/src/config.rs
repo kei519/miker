@@ -108,20 +108,8 @@ impl MikerConfig {
         toml::from_slice(&toml_bytes).map_err(Error::new)
     }
 
-    pub fn resolve(&self, arch: Arch, kind: TargetKind) -> Result<ResolvedTarget> {
-        if matches!(kind, TargetKind::Host) {
-            return Ok(ResolvedTarget::Host);
-        }
-
-        let Some(mapping) = self.arch.0.get(&arch) else {
-            bail!("There is no config for {}", arch);
-        };
-        mapping
-            .target
-            .0
-            .get(&kind)
-            .map(|spec| ResolvedTarget::Explicit(spec.0.clone()))
-            .ok_or_else(|| anyhow!("Missing target mapping for {}.{}", arch, kind))
+    pub fn take_arch_fonfig(&mut self, arch: Arch) -> Option<ArchConfig> {
+        self.arch.0.remove(&arch)
     }
 }
 
@@ -145,18 +133,34 @@ struct ArchMatrix(BTreeMap<Arch, ArchConfig>);
 
 #[derive(Debug, Default, Clone, Deserialize)]
 #[serde(default)]
-struct ArchConfig {
+pub struct ArchConfig {
     target: Targets,
-    image: ImageConfig,
+    pub image: ImageConfig,
+}
+
+impl ArchConfig {
+    // This should return `Option<_>` but now the returned value is always converted to
+    // `Result<_>`, so we return `Result<_>`.
+    pub fn target(&self, kind: &TargetKind) -> Result<ResolvedTarget> {
+        if matches!(kind, TargetKind::Host) {
+            return Ok(ResolvedTarget::Host);
+        }
+
+        self.target
+            .0
+            .get(kind)
+            .map(|spec| ResolvedTarget::Explicit(spec.0.clone()))
+            .ok_or_else(|| anyhow!("Target triple of {} is not specified", kind))
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
-struct ImageConfig {
-    image_name: String,
-    ovmf_vars: String,
-    partition: Vec<Partition>,
-    component: Vec<Component>,
+pub struct ImageConfig {
+    pub image_name: String,
+    pub ovmf_vars: String,
+    pub partition: Vec<Partition>,
+    pub component: Vec<ComponentConfig>,
 }
 
 impl Default for ImageConfig {
@@ -174,7 +178,7 @@ impl Default for ImageConfig {
 pub struct PartitionName(String);
 
 #[derive(Debug, Clone, Deserialize)]
-struct Partition {
+pub struct Partition {
     name: PartitionName,
     #[serde(
         rename = "type",
@@ -212,14 +216,26 @@ impl Partition {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
 pub struct ComponentName(String);
 
+impl AsRef<str> for ComponentName {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Display for ComponentName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
-struct Component {
-    name: ComponentName,
-    partition: PartitionName,
-    install: Utf8PathBuf,
+pub struct ComponentConfig {
+    pub name: ComponentName,
+    pub partition: PartitionName,
+    pub install: Utf8PathBuf,
 }
 
 #[derive(Debug, Default, Clone, Deserialize)]

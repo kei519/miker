@@ -41,7 +41,7 @@ pub enum MessageFormat {
     Json,
     JsonDiagnosticShort,
     JsonDiagnosticRenderedAnsi,
-    JsonRenderDiagnostic,
+    JsonRenderDiagnostics,
 }
 
 impl std::fmt::Display for MessageFormat {

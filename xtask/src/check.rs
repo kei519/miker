@@ -1,6 +1,6 @@
 use std::process::Command;
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use clap::Parser;
 
 use crate::{
@@ -47,7 +47,10 @@ impl CheckCommand {
         let mut status = Status::Success;
 
         let cargo_metadata = config::metadata()?;
-        let build_config = MikerConfig::from_root(&cargo_metadata.workspace_root)?;
+        let mut build_config = MikerConfig::from_root(&cargo_metadata.workspace_root)?;
+        let arch_config = build_config
+            .take_arch_fonfig(self.arch)
+            .ok_or_else(|| anyhow!("Config for {} is not found", self.arch))?;
 
         for package in cargo_metadata.workspace_packages() {
             let package_metadata = PackageMetadata::from_package(package)?;
@@ -59,8 +62,8 @@ impl CheckCommand {
                 &format!("--message-format={}", self.message_format),
             ]);
 
-            if let Some(option) = build_config
-                .resolve(self.arch, package_metadata.target)?
+            if let Some(option) = arch_config
+                .target(&package_metadata.target)?
                 .option_for_cargo()
             {
                 cmd.arg(option);
