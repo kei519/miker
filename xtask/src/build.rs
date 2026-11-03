@@ -11,7 +11,7 @@ use clap::Parser;
 use crate::{
     Status,
     common::{Arch, MessageFormat},
-    config::{self, ComponentConfig, MikerConfig, PackageMetadata, Partition},
+    config::{self, BuildConfig, MikerConfig, PackageMetadata, Partition},
 };
 
 #[derive(Debug, Clone, Parser)]
@@ -48,16 +48,21 @@ impl BuildCommand {
 }
 
 pub struct Component {
-    config: ComponentConfig,
-    path: Utf8PathBuf,
+    pub install: Utf8PathBuf,
+    pub path: Utf8PathBuf,
+}
+
+// Must be renamed
+pub struct PartitionData {
+    pub partition: Partition,
+    pub components: Vec<Component>,
 }
 
 pub enum BuildResult {
     Success {
+        build_config: BuildConfig,
         image_name: String,
-        ovmf_vars: String,
-        partitions: Vec<Partition>,
-        components: Vec<Component>,
+        data: Vec<PartitionData>,
     },
     Failure,
 }
@@ -157,26 +162,42 @@ impl BuildOptions {
             }
         }
 
-        Ok(if failed {
-            BuildResult::Failure
-        } else {
-            let image_config = arch_config.image;
-            let components = image_config
-                .component
-                .into_iter()
-                .map(|config| {
-                    executables
-                        .remove(config.name.as_ref())
-                        .ok_or_else(|| anyhow!("There is no executable for {}", config.name))
-                        .map(|path| Component { config, path })
-                })
-                .collect::<Result<_>>()?;
-            BuildResult::Success {
-                image_name: image_config.image_name,
-                ovmf_vars: image_config.ovmf_vars,
-                partitions: image_config.partition,
-                components,
-            }
+        if failed {
+            return Ok(BuildResult::Failure);
+        }
+
+        let image_config = arch_config.image;
+        let mut data: Vec<_> = image_config
+            .partition
+            .into_iter()
+            .map(|partition| PartitionData {
+                partition,
+                components: vec![],
+            })
+            .collect();
+        for component in image_config.component {
+            let executable = executables
+                .remove(component.name.as_ref())
+                .ok_or_else(|| anyhow!("There is no executable for \"{}\"", component.name))?;
+            let partition = data
+                .iter_mut()
+                .find(|data| data.partition.name == component.partition)
+                .ok_or_else(|| {
+                    anyhow!(
+                        "There is no partition settings for component \"{}\"",
+                        component.name
+                    )
+                })?;
+            partition.components.push(Component {
+                install: component.install,
+                path: executable,
+            });
+        }
+
+        Ok(BuildResult::Success {
+            build_config: build_config.build,
+            image_name: image_config.image_name,
+            data,
         })
     }
 }

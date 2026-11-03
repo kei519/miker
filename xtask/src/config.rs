@@ -5,11 +5,8 @@ use cargo_metadata::{
     Metadata, MetadataCommand, Package,
     camino::{Utf8Path, Utf8PathBuf},
 };
-use gpt::partition_types::Type as PartitionType;
-use serde::{
-    Deserialize, Deserializer,
-    de::{Unexpected, Visitor},
-};
+use gpt::partition_types;
+use serde::Deserialize;
 use serde_json::Value as JsonValue;
 
 use crate::common::Arch;
@@ -91,7 +88,7 @@ pub fn metadata() -> Result<Metadata> {
 #[derive(Debug, Default, Clone, Deserialize)]
 #[serde(default)]
 pub struct MikerConfig {
-    build: BuildConfig,
+    pub build: BuildConfig,
     arch: ArchMatrix,
 }
 
@@ -115,14 +112,14 @@ impl MikerConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
-struct BuildConfig {
-    build_dir: Utf8PathBuf,
+pub struct BuildConfig {
+    pub dir: Utf8PathBuf,
 }
 
 impl Default for BuildConfig {
     fn default() -> Self {
         Self {
-            build_dir: "build".into(),
+            dir: "build".into(),
         }
     }
 }
@@ -166,7 +163,7 @@ pub struct ImageConfig {
 impl Default for ImageConfig {
     fn default() -> Self {
         Self {
-            image_name: "image.disk".into(),
+            image_name: "disk.img".into(),
             ovmf_vars: "vars.fd".into(),
             partition: vec![],
             component: vec![],
@@ -174,46 +171,46 @@ impl Default for ImageConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
 pub struct PartitionName(String);
+
+impl AsRef<str> for PartitionName {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
+#[serde(try_from = "&str")]
+pub enum PartitionType {
+    Efi,
+}
+
+impl TryFrom<&str> for PartitionType {
+    type Error = Error;
+
+    fn try_from(value: &str) -> std::prelude::v1::Result<Self, Self::Error> {
+        match value.to_lowercase().as_str() {
+            "efi" => Ok(Self::Efi),
+            name => Err(anyhow!("unknown partition type: {name}")),
+        }
+    }
+}
+
+impl From<PartitionType> for partition_types::Type {
+    fn from(value: PartitionType) -> Self {
+        match value {
+            PartitionType::Efi => partition_types::EFI,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Partition {
-    name: PartitionName,
-    #[serde(
-        rename = "type",
-        deserialize_with = "Partition::deserialize_partition_type"
-    )]
-    ty: PartitionType,
-    size: u64,
-}
-
-impl Partition {
-    fn deserialize_partition_type<'de, D: Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<PartitionType, D::Error> {
-        use serde::de::Error as _;
-
-        struct TypeVisitor;
-        impl<'d> Visitor<'d> for TypeVisitor {
-            type Value = String;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a partition type name or GUID is required")
-            }
-
-            fn visit_str<E>(self, v: &str) -> std::prelude::v1::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(v.into())
-            }
-        }
-        let name = deserializer.deserialize_str(TypeVisitor)?;
-
-        PartitionType::from_name(&name)
-            .map_err(|e| D::Error::invalid_value(Unexpected::Str(&name), &e.as_str()))
-    }
+    pub name: PartitionName,
+    #[serde(rename = "type")]
+    pub ty: PartitionType,
+    pub size: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]

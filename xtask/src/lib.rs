@@ -10,6 +10,7 @@ mod clippy;
 mod command;
 mod common;
 mod config;
+mod image;
 
 pub enum Status {
     Success,

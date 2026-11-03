@@ -1,13 +1,16 @@
 use anyhow::Result;
 use clap::Subcommand;
 
-use crate::{Status, build::BuildCommand, check::CheckCommand, clippy::ClippyCommand};
+use crate::{
+    Status, build::BuildCommand, check::CheckCommand, clippy::ClippyCommand, image::ImageCommand,
+};
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum Command {
     Build(BuildCommand),
     Check(CheckCommand),
     Clippy(ClippyCommand),
+    Image(ImageCommand),
 }
 
 impl Command {
@@ -16,6 +19,7 @@ impl Command {
             Self::Build(build) => build.run(),
             Self::Check(check) => check.run(),
             Self::Clippy(clippy) => clippy.run(),
+            Self::Image(image) => image.run(),
         }
     }
 }
