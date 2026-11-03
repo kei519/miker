@@ -41,7 +41,7 @@ impl Cli {
                 Status::Failure => 101,
             })
             .unwrap_or_else(|e| {
-                eprintln!("{e:#}");
+                eprintln!("{e:?}");
                 1
             })
             .into()
