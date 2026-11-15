@@ -11,7 +11,7 @@ use clap::Parser;
 use crate::{
     Status,
     common::{Arch, MessageFormat},
-    config::{self, BuildConfig, MikerConfig, PackageMetadata, Partition},
+    config::{self, BuildConfig, ImageBaseConfig, MikerConfig, PackageMetadata, Partition},
 };
 
 #[derive(Debug, Clone, Parser)]
@@ -57,7 +57,7 @@ pub struct PartitionData {
 
 pub struct BuildResult {
     pub build_config: BuildConfig,
-    pub image_name: String,
+    pub image_config: ImageBaseConfig,
     pub data: Vec<PartitionData>,
 }
 
@@ -190,7 +190,7 @@ impl BuildOptions {
 
         Ok(Status::Success(BuildResult {
             build_config: build_config.build,
-            image_name: image_config.image_name,
+            image_config: image_config.base,
             data,
         }))
     }

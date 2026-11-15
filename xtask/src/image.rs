@@ -45,6 +45,33 @@ impl ImageCommand {
             dir: self.dir.as_deref(),
         }
         .build()
+        .map(Status::into_simple)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ImageResult {
+    dir: Utf8PathBuf,
+    arch: Arch,
+    image_name: String,
+    ovmf_vars: String,
+}
+
+impl ImageResult {
+    pub fn base_dir(&self) -> &Utf8Path {
+        &self.dir
+    }
+
+    pub fn arch_dir(&self) -> Utf8PathBuf {
+        self.dir.join(self.arch.to_string())
+    }
+
+    pub fn image_path(&self) -> Utf8PathBuf {
+        self.arch_dir().join(&self.image_name)
+    }
+
+    pub fn ovmf_vars_path(&self) -> Utf8PathBuf {
+        self.arch_dir().join(&self.ovmf_vars)
     }
 }
 
@@ -58,7 +85,7 @@ pub struct ImageOptions<'a> {
 }
 
 impl<'a> ImageOptions<'a> {
-    pub fn build(self) -> Result<Status> {
+    pub fn build(self) -> Result<Status<ImageResult>> {
         const LBS: LogicalBlockSize = LogicalBlockSize::Lb512;
         // ProtectiveMBR + (table header + entries) * 2 (primary and backup)
         const EFI_DISK_MIN_SIZE: u64 = LBS.as_u64() + (LBS.as_u64() + (16 << 10)) * 2;
@@ -66,7 +93,7 @@ impl<'a> ImageOptions<'a> {
         // Build components.
         let Status::Success(BuildResult {
             build_config,
-            image_name,
+            image_config,
             data,
             ..
         }) = BuildOptions {
@@ -81,12 +108,13 @@ impl<'a> ImageOptions<'a> {
         };
 
         // Create the image file.
-        let dir = self
-            .dir
-            .unwrap_or(&build_config.dir)
-            .join(self.arch.to_string());
-        let image_path = dir.join(image_name);
-        fs::create_dir_all(dir)?;
+        let result = ImageResult {
+            dir: self.dir.map(|d| d.to_owned()).unwrap_or(build_config.dir),
+            arch: self.arch,
+            image_name: image_config.image_name,
+            ovmf_vars: image_config.ovmf_vars,
+        };
+        fs::create_dir_all(result.arch_dir())?;
 
         let image_size = data
             .iter()
@@ -96,7 +124,7 @@ impl<'a> ImageOptions<'a> {
             .read(true)
             .create(true)
             .truncate(false)
-            .open(&image_path)?;
+            .open(result.image_path())?;
         image.set_len(image_size)?;
 
         // Format image as GPT.
@@ -146,7 +174,7 @@ impl<'a> ImageOptions<'a> {
             }
         }
 
-        Ok(Status::success())
+        Ok(Status::Success(result))
     }
 }
 

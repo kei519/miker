@@ -153,22 +153,27 @@ impl ArchConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
-pub struct ImageConfig {
+pub struct ImageBaseConfig {
     pub image_name: String,
     pub ovmf_vars: String,
-    pub partition: Vec<Partition>,
-    pub component: Vec<ComponentConfig>,
 }
 
-impl Default for ImageConfig {
+impl Default for ImageBaseConfig {
     fn default() -> Self {
         Self {
             image_name: "disk.img".into(),
             ovmf_vars: "vars.fd".into(),
-            partition: vec![],
-            component: vec![],
         }
     }
+}
+
+#[derive(Debug, Default, Clone, Deserialize)]
+#[serde(default)]
+pub struct ImageConfig {
+    #[serde(flatten)]
+    pub base: ImageBaseConfig,
+    pub partition: Vec<Partition>,
+    pub component: Vec<ComponentConfig>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
