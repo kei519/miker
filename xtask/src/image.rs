@@ -45,6 +45,7 @@ impl ImageCommand {
             dir: self.dir.as_deref(),
         }
         .build()
+        .map(Status::into_simple)
     }
 }
 
@@ -58,7 +59,7 @@ pub struct ImageOptions<'a> {
 }
 
 impl<'a> ImageOptions<'a> {
-    pub fn build(self) -> Result<Status> {
+    pub fn build(self) -> Result<Status<Utf8PathBuf>> {
         const LBS: LogicalBlockSize = LogicalBlockSize::Lb512;
         // ProtectiveMBR + (table header + entries) * 2 (primary and backup)
         const EFI_DISK_MIN_SIZE: u64 = LBS.as_u64() + (LBS.as_u64() + (16 << 10)) * 2;
@@ -146,7 +147,7 @@ impl<'a> ImageOptions<'a> {
             }
         }
 
-        Ok(Status::success())
+        Ok(Status::Success(image_path))
     }
 }
 
