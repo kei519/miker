@@ -33,6 +33,15 @@ impl std::fmt::Display for Arch {
     }
 }
 
+impl From<Arch> for ovmf_prebuilt::Arch {
+    fn from(value: Arch) -> Self {
+        match value {
+            Arch::AArch64 => Self::Aarch64,
+            Arch::X86_64 => Self::X64,
+        }
+    }
+}
+
 #[derive(Debug, Default, Clone, Copy, ValueEnum)]
 pub enum MessageFormat {
     #[default]

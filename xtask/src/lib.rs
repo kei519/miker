@@ -11,6 +11,7 @@ mod command;
 mod common;
 mod config;
 mod image;
+mod run;
 
 pub enum Status<T = ()> {
     Success(T),

@@ -6,6 +6,7 @@ uefi = "x86_64-unknown-uefi"
 
 # [arch.x86_64.image]
 # image_name = "disk.img"
+# ovmf_vars = "vars.fd"
 
 [[arch.x86_64.image.partition]]
 name = "MIKER-EFI"
