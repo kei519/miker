@@ -11,6 +11,8 @@ uefi = "x86_64-unknown-uefi"
 name = "MIKER-EFI"
 type = "efi"
 size = 0x80_000
+# We have to use the value below to format EFI partition with FAT32.
+# size = 0x408_0000
 
 [[arch.x86_64.image.component]]
 name = "bootloader"
