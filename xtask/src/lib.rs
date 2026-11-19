@@ -12,9 +12,24 @@ mod common;
 mod config;
 mod image;
 
-pub enum Status {
-    Success,
+pub enum Status<T = ()> {
+    Success(T),
     Failure,
+}
+
+impl Status {
+    pub const fn success() -> Self {
+        Status::Success(())
+    }
+}
+
+impl<T> Status<T> {
+    pub fn into_simple(self) -> Status {
+        match self {
+            Status::Success(_) => Status::Success(()),
+            Status::Failure => Status::Failure,
+        }
+    }
 }
 
 /// Provide automations for miker.
@@ -38,7 +53,7 @@ impl Cli {
         self.command
             .run()
             .map(|status| match status {
-                Status::Success => 0,
+                Status::Success(()) => 0,
                 Status::Failure => 101,
             })
             .unwrap_or_else(|e| {

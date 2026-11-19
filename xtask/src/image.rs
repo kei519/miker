@@ -64,12 +64,12 @@ impl<'a> ImageOptions<'a> {
         const EFI_DISK_MIN_SIZE: u64 = LBS.as_u64() + (LBS.as_u64() + (16 << 10)) * 2;
 
         // Build components.
-        let BuildResult::Success {
+        let Status::Success(BuildResult {
             build_config,
             image_name,
             data,
             ..
-        } = BuildOptions {
+        }) = BuildOptions {
             keep_going: self.keep_going,
             locked: self.locked,
             arch: self.arch,
@@ -146,7 +146,7 @@ impl<'a> ImageOptions<'a> {
             }
         }
 
-        Ok(Status::Success)
+        Ok(Status::success())
     }
 }
 

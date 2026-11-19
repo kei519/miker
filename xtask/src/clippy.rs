@@ -36,7 +36,7 @@ pub struct ClippyCommand {
 
 impl ClippyCommand {
     pub fn run(self) -> Result<Status> {
-        let mut status = Status::Success;
+        let mut status = Status::success();
 
         let cargo_metadata = config::metadata()?;
         let mut build_config = MikerConfig::from_root(&cargo_metadata.workspace_root)?;

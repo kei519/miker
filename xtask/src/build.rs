@@ -40,10 +40,7 @@ impl BuildCommand {
             release: self.release,
         }
         .build()
-        .map(|result| match result {
-            BuildResult::Success { .. } => Status::Success,
-            BuildResult::Failure => Status::Failure,
-        })
+        .map(Status::into_simple)
     }
 }
 
@@ -58,13 +55,10 @@ pub struct PartitionData {
     pub components: Vec<Component>,
 }
 
-pub enum BuildResult {
-    Success {
-        build_config: BuildConfig,
-        image_name: String,
-        data: Vec<PartitionData>,
-    },
-    Failure,
+pub struct BuildResult {
+    pub build_config: BuildConfig,
+    pub image_name: String,
+    pub data: Vec<PartitionData>,
 }
 
 pub struct BuildOptions {
@@ -75,7 +69,7 @@ pub struct BuildOptions {
 }
 
 impl BuildOptions {
-    pub fn build(self) -> Result<BuildResult> {
+    pub fn build(self) -> Result<Status<BuildResult>> {
         let mut failed = false;
 
         let cargo_metadata = config::metadata()?;
@@ -157,13 +151,13 @@ impl BuildOptions {
                 failed = true;
 
                 if !self.keep_going {
-                    return Ok(BuildResult::Failure);
+                    return Ok(Status::Failure);
                 }
             }
         }
 
         if failed {
-            return Ok(BuildResult::Failure);
+            return Ok(Status::Failure);
         }
 
         let image_config = arch_config.image;
@@ -194,10 +188,10 @@ impl BuildOptions {
             });
         }
 
-        Ok(BuildResult::Success {
+        Ok(Status::Success(BuildResult {
             build_config: build_config.build,
             image_name: image_config.image_name,
             data,
-        })
+        }))
     }
 }
