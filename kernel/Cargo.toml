@@ -15,6 +15,7 @@ test = false
 bench = false
 
 [dependencies]
+arch = { version = "0.0.0", path = "../arch" }
 
 [lints]
 workspace = true

@@ -15,6 +15,7 @@ test = false
 bench = false
 
 [dependencies]
+arch = { version = "0.0.0", path = "../arch" }
 uefi = { version = "0.41.0", features = ["panic_handler"] }
 
 [lints]
