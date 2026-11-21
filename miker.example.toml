@@ -24,11 +24,11 @@ install = "EFI/BOOT/BOOTX64.EFI"
 uefi = "aarch64-unknown-uefi"
 
 [[arch.aarch64.image.partition]]
-name = "EFI"
+name = "MIKER-EFI"
 type = "efi"
 size = 0x80_000
 
 [[arch.aarch64.image.component]]
 name = "bootloader"
-partition = "EFI"
+partition = "MIKER-EFI"
 install = "EFI/BOOT/BOOTAA64.EFI"
