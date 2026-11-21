@@ -44,23 +44,27 @@ impl BuildCommand {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Component {
     pub install: Utf8PathBuf,
     pub path: Utf8PathBuf,
 }
 
 // Must be renamed
+#[derive(Debug, Clone)]
 pub struct PartitionData {
     pub partition: Partition,
     pub components: Vec<Component>,
 }
 
+#[derive(Debug, Clone)]
 pub struct BuildResult {
     pub build_config: BuildConfig,
     pub image_config: ImageBaseConfig,
     pub data: Vec<PartitionData>,
 }
 
+#[derive(Debug, Clone)]
 pub struct BuildOptions {
     pub keep_going: bool,
     pub locked: bool,
