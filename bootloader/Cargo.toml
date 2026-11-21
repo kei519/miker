@@ -9,6 +9,11 @@ readme.workspace = true
 [package.metadata.miker]
 target = "uefi"
 
+[[bin]]
+name = "bootloader"
+test = false
+bench = false
+
 [dependencies]
 uefi = { version = "0.41.0", features = ["panic_handler"] }
 

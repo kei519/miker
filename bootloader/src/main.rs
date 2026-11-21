@@ -1,9 +1,9 @@
-#![cfg_attr(not(test), no_std)]
+#![no_std]
 #![no_main]
 
 use uefi::{prelude::*, println};
 
-#[cfg_attr(not(test), entry)]
+#[entry]
 fn main() -> Status {
     uefi::helpers::init().unwrap();
 
