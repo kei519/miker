@@ -92,6 +92,16 @@ impl BuildOptions {
                     continue;
                 }
             };
+            // Skip the package if it is not a component on the specified architecture.
+            if arch_config
+                .image
+                .component
+                .iter()
+                .find(|&cfg| cfg.name.as_ref() == package.name.as_str())
+                .is_none()
+            {
+                continue;
+            }
 
             let mut cmd = Command::new(env!("CARGO"));
             cmd.args([
