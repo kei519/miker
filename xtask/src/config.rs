@@ -14,6 +14,7 @@ use crate::common::Arch;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum TargetKind {
     Host,
+    Lib,
     NonHost(String),
 }
 
@@ -21,6 +22,7 @@ impl std::fmt::Display for TargetKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Host => f.write_str("host"),
+            Self::Lib => f.write_str("lib"),
             Self::NonHost(target) => f.write_str(target),
         }
     }
@@ -51,6 +53,8 @@ impl<'de> Deserialize<'de> for TargetKind {
         deserializer.deserialize_str(Visitor).map(|s| {
             if s == "host" {
                 Self::Host
+            } else if s == "lib" {
+                Self::Lib
             } else {
                 Self::NonHost(s)
             }
@@ -139,8 +143,10 @@ impl ArchConfig {
     // This should return `Option<_>` but now the returned value is always converted to
     // `Result<_>`, so we return `Result<_>`.
     pub fn target(&self, kind: &TargetKind) -> Result<ResolvedTarget> {
-        if matches!(kind, TargetKind::Host) {
-            return Ok(ResolvedTarget::Host);
+        match kind {
+            TargetKind::Host => return Ok(ResolvedTarget::Host),
+            TargetKind::Lib => return Ok(ResolvedTarget::Lib),
+            _ => {}
         }
 
         self.target
@@ -256,6 +262,7 @@ impl std::fmt::Display for TargetSpec {
 #[derive(Debug, Clone)]
 pub enum ResolvedTarget {
     Host,
+    Lib,
     Explicit(String),
 }
 
@@ -263,6 +270,7 @@ impl ResolvedTarget {
     pub fn option_for_cargo(&self) -> Option<String> {
         match self {
             Self::Host => None,
+            Self::Lib => None,
             Self::Explicit(target) => Some(format!("--target={target}")),
         }
     }
