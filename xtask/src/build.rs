@@ -104,6 +104,16 @@ impl BuildOptions {
                 &format!("--message-format={}", MessageFormat::JsonRenderDiagnostics),
             ]);
 
+            let cargo_config = package
+                .manifest_path
+                .parent()
+                .unwrap()
+                .join(".cargo")
+                .join("config.toml");
+            if cargo_config.exists() {
+                cmd.args(["--config", cargo_config.as_str()]);
+            }
+
             if let Some(option) = arch_config
                 .target(&package_metadata.target)?
                 .option_for_cargo()
