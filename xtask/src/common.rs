@@ -8,6 +8,7 @@ use serde::Deserialize;
 #[value(rename_all = "lower")]
 pub enum Arch {
     AArch64,
+    RiscV64,
     #[default]
     #[value(name = "x86_64")]
     X86_64,
@@ -37,6 +38,7 @@ impl From<Arch> for ovmf_prebuilt::Arch {
     fn from(value: Arch) -> Self {
         match value {
             Arch::AArch64 => Self::Aarch64,
+            Arch::RiscV64 => Self::Riscv64,
             Arch::X86_64 => Self::X64,
         }
     }

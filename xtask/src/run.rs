@@ -73,6 +73,9 @@ impl RunCommand {
             Arch::AArch64 => {
                 qemu.args(["-machine", "virt"]).args(["-cpu", "cortex-a35"]);
             }
+            Arch::RiscV64 => {
+                qemu.args(["-machine", "virt"]).args(["-cpu", "rv64"]);
+            }
             Arch::X86_64 => {
                 qemu.args(["-machine", "q35"]).arg("-nodefaults");
             }
