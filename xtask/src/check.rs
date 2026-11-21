@@ -49,7 +49,7 @@ impl CheckCommand {
         let cargo_metadata = config::metadata()?;
         let mut build_config = MikerConfig::from_root(&cargo_metadata.workspace_root)?;
         let arch_config = build_config
-            .take_arch_fonfig(self.arch)
+            .take_arch_config(self.arch)
             .ok_or_else(|| anyhow!("Config for {} is not found", self.arch))?;
 
         for package in cargo_metadata.workspace_packages() {

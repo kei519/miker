@@ -105,7 +105,7 @@ impl MikerConfig {
         toml::from_slice(&toml_bytes).map_err(Error::new)
     }
 
-    pub fn take_arch_fonfig(&mut self, arch: Arch) -> Option<ArchConfig> {
+    pub fn take_arch_config(&mut self, arch: Arch) -> Option<ArchConfig> {
         self.arch.0.remove(&arch)
     }
 }
