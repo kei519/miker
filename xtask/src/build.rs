@@ -81,6 +81,7 @@ impl BuildOptions {
         let arch_config = build_config
             .take_arch_config(self.arch)
             .ok_or_else(|| anyhow!("Config for {} is not found", self.arch))?;
+        let envs = arch_config.envs();
 
         let mut executables = BTreeMap::new();
         for package in cargo_metadata.workspace_packages() {
@@ -98,6 +99,7 @@ impl BuildOptions {
             };
 
             let mut cmd = Command::new(env!("CARGO"));
+            cmd.envs(&envs);
             cmd.args([
                 "build",
                 &format!("--package={}", package.name),

@@ -155,6 +155,17 @@ impl ArchConfig {
             .map(|spec| ResolvedTarget::Explicit(spec.0.clone()))
             .ok_or_else(|| anyhow!("Target triple of {} is not specified", kind))
     }
+
+    pub fn envs(&self) -> BTreeMap<String, Utf8PathBuf> {
+        self.image
+            .component
+            .iter()
+            .map(|component| {
+                let key = format!("{}_INSTALL_PATH", component.name.as_ref().to_uppercase());
+                (key, component.install.clone())
+            })
+            .collect()
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]

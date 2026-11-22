@@ -43,6 +43,7 @@ impl ClippyCommand {
         let arch_config = build_config
             .take_arch_config(self.arch)
             .ok_or_else(|| anyhow!("Config for {} is not found", self.arch))?;
+        let envs = arch_config.envs();
 
         for package in cargo_metadata.workspace_packages() {
             // Skip cargo-xtask itself
@@ -53,6 +54,7 @@ impl ClippyCommand {
             let package_metadata = PackageMetadata::from_package(package)?;
 
             let mut cmd = Command::new("cargo");
+            cmd.envs(&envs);
             cmd.args([
                 "clippy",
                 &format!("--package={}", package.name),

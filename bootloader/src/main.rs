@@ -8,6 +8,7 @@ fn main() -> Status {
     uefi::helpers::init().unwrap();
 
     println!("Hello, world!");
+    println!("kernel: {}", env!("KERNEL_INSTALL_PATH"));
 
     loop {
         arch::hlt();
