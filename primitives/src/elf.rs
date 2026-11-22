@@ -1,0 +1,320 @@
+use core::{mem, num::NonZeroU64, ptr};
+
+pub struct Elf64<'a> {
+    data: &'a [u8],
+}
+
+impl<'a> Elf64<'a> {
+    pub fn new(data: &'a [u8]) -> Result<Self, ParseError> {
+        Elf64Header::check_ident(data)?;
+        if data.len() < mem::size_of::<Elf64Header>() {
+            return Err(ParseError::TooSmall);
+        }
+        // SAFETY:
+        // * data is valid because of followings:
+        //   * The pointer is derived from the reference to the slice.
+        //   * The allocated size is sufficient.
+        // * All value is valid for.
+        let header = unsafe { ptr::read_unaligned(data.as_ptr().cast::<Elf64Header>()) };
+        if header.entry_header_size as usize != mem::size_of::<Elf64Header>() {
+            return Err(ParseError::InvalidHeaderSize);
+        }
+        if header.ident[Elf64Header::VERSION_INDEX] as u32 != header.version {
+            return Err(ParseError::VersionMismatch);
+        }
+
+        // TODO: Check all header is contained in data.
+        Ok(Self { data })
+    }
+
+    pub fn os_abi(&self) -> OsAbi {
+        self.read_program_header().os_abi()
+    }
+
+    pub fn abi_version(&self) -> AbiVersion {
+        self.read_program_header().abi_version()
+    }
+
+    pub fn ty(&self) -> Type {
+        self.read_program_header().ty
+    }
+
+    pub fn machine(&self) -> Machine {
+        self.read_program_header().machine
+    }
+
+    pub fn version(&self) -> Version {
+        Version(self.read_program_header().version as u8)
+    }
+
+    pub fn entry(&self) -> Option<NonZeroU64> {
+        NonZeroU64::new(self.read_program_header().entry)
+    }
+
+    pub fn flags(&self) -> MachineFlags {
+        self.read_program_header().flags
+    }
+
+    fn read_program_header(&self) -> Elf64Header {
+        // SAFETY:
+        // * data is valid because of followings:
+        //   * The pointer is derived from the reference to the slice.
+        //   * The allocated size is sufficient.
+        // * All value is valid for.
+        unsafe { ptr::read_unaligned(self.data.as_ptr().cast()) }
+    }
+}
+
+impl<'a> core::fmt::Debug for Elf64<'a> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Elf64").finish_non_exhaustive()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ParseError {
+    TooSmall,
+    InvalidMagic,
+    InvalidHeaderSize,
+    PaddingNotZero,
+    VersionMismatch,
+    InvalidClass(Class),
+    UnsupportedEndian(Endian),
+    UnsupportedVersion(Version),
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Class(u8);
+
+impl Class {
+    pub const NONE: Self = Self(0);
+    pub const ELF32: Self = Self(1);
+    pub const ELF64: Self = Self(2);
+
+    pub const fn as_u8(self) -> u8 {
+        self.0
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Endian(u8);
+
+impl Endian {
+    pub const NONE: Self = Self(0);
+    pub const LSB: Self = Self(1);
+    pub const MSB: Self = Self(2);
+
+    pub const fn as_u8(self) -> u8 {
+        self.0
+    }
+
+    pub const fn native() -> Self {
+        cfg_select! {
+            target_endian = "little" => {
+                Self::LSB
+            }
+            target_endian = "big" => {
+                Self::MSB
+            }
+            _ => {
+                Self::None
+            }
+        }
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct OsAbi(u8);
+
+impl OsAbi {
+    pub const NONE: Self = Self(0);
+    pub const GNU: Self = Self(3);
+    pub const LINUX: Self = Self(4);
+
+    pub const fn as_u8(self) -> u8 {
+        self.0
+    }
+
+    pub const fn is_arch_specific(self) -> bool {
+        64 <= self.0
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct AbiVersion(pub u8);
+
+#[repr(transparent)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Type(u16);
+
+impl Type {
+    /// No file type.
+    pub const NONE: Self = Self(0);
+    /// Relocation file.
+    pub const REL: Self = Self(1);
+    /// Executable file.
+    pub const EXEC: Self = Self(2);
+    /// Shared object file.
+    pub const DYN: Self = Self(3);
+    /// Core file.
+    pub const CORE: Self = Self(4);
+
+    /// Operating system-specific
+    const LOOS: Self = Self(0xfe00);
+    /// Operating system-specific
+    const HIOS: Self = Self(0xfeff);
+    /// Processor-specific.
+    const LOPROC: Self = Self(0xff00);
+    /// Processor-specific.
+    const HIPROC: Self = Self(0xffff);
+
+    pub const fn as_u16(self) -> u16 {
+        self.0
+    }
+
+    /// Whether this is an operating system-specific type.
+    pub const fn is_os_specific(self) -> bool {
+        Self::LOOS.0 <= self.0 && self.0 <= Self::HIOS.0
+    }
+
+    /// Whether this is a process system-specific type.
+    pub const fn is_processor_specific(self) -> bool {
+        #[allow(clippy::absurd_extreme_comparisons)]
+        {
+            Self::LOPROC.0 <= self.0 && self.0 <= Self::HIPROC.0
+        }
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Machine(u16);
+
+impl Machine {
+    /// No machine.
+    pub const NONE: Self = Self(0);
+    /// Intel 80386
+    pub const I386: Self = Self(3);
+    /// ARM 32-bit architecture.
+    pub const ARM: Self = Self(40);
+    /// AMD x86-64 architecture.
+    pub const X86_64: Self = Self(62);
+    /// ARM 64-bit architecture.
+    pub const AARCH64: Self = Self(183);
+    /// RISC-V
+    pub const RISCV: Self = Self(243);
+
+    pub const fn as_u16(self) -> u16 {
+        self.0
+    }
+
+    /// Whether this is a reserved architecture.
+    pub const fn is_reserved(self) -> bool {
+        (11 <= self.0 && self.0 <= 14)
+            || self.0 == 16
+            || (24 <= self.0 && self.0 <= 35)
+            || (121 <= self.0 && self.0 <= 130)
+            || (145 <= self.0 && self.0 <= 159)
+            || self.0 == 182
+            || self.0 == 184
+            || (225 <= self.0 && self.0 <= 242)
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Version(u8);
+
+impl Version {
+    pub const NONE: Self = Self(0);
+    pub const CURRENT: Self = Self(1);
+
+    pub const fn as_u8(self) -> u8 {
+        self.0
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct MachineFlags(pub u32);
+
+#[repr(C)]
+struct Elf64Header {
+    ident: [u8; Self::INDENT_SIZE],
+    ty: Type,
+    machine: Machine,
+    version: u32,
+    entry: u64,
+    program_offset: u64,
+    section_offset: u64,
+    flags: MachineFlags,
+    entry_header_size: u16,
+    program_header_entry_size: u16,
+    program_header_number: u16,
+    section_header_entry_size: u16,
+    section_header_number: u16,
+    section_header_string_index: u16,
+}
+const _: () = {
+    use core::mem::size_of;
+    ["Elf64Header size"][size_of::<Elf64Header>() - 64];
+};
+
+impl Elf64Header {
+    const INDENT_SIZE: usize = 16;
+    const MAGIC: [u8; 4] = *b"\x7fELF";
+    const CLASS_INDEX: usize = 4;
+    const DATA_INDEX: usize = 5;
+    const VERSION_INDEX: usize = 6;
+    const OSABI_INDEX: usize = 7;
+    const ABIVERSION_INDEX: usize = 8;
+    const PAD_START: usize = 9;
+
+    fn check_ident(data: &[u8]) -> Result<(), ParseError> {
+        if data.len() < Self::MAGIC.len() {
+            return Err(ParseError::TooSmall);
+        }
+        if data[0..Self::MAGIC.len()] != Self::MAGIC {
+            return Err(ParseError::InvalidMagic);
+        }
+        if data.len() < Self::INDENT_SIZE {
+            return Err(ParseError::TooSmall);
+        }
+
+        let class = Class(data[Self::CLASS_INDEX]);
+        if class != Class::ELF64 {
+            return Err(ParseError::InvalidClass(class));
+        }
+
+        let endian = Endian(data[Self::DATA_INDEX]);
+        if endian != Endian::native() {
+            return Err(ParseError::UnsupportedEndian(endian));
+        }
+
+        let version = Version(data[Self::VERSION_INDEX]);
+        if version != Version::CURRENT {
+            return Err(ParseError::UnsupportedVersion(version));
+        }
+
+        if data[Self::PAD_START..Self::INDENT_SIZE]
+            .iter()
+            .any(|&b| b != 0)
+        {
+            return Err(ParseError::PaddingNotZero);
+        }
+
+        Ok(())
+    }
+
+    const fn os_abi(&self) -> OsAbi {
+        OsAbi(self.ident[Self::OSABI_INDEX])
+    }
+
+    const fn abi_version(&self) -> AbiVersion {
+        AbiVersion(self.ident[Self::ABIVERSION_INDEX])
+    }
+}
