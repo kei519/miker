@@ -1,5 +1,7 @@
 use core::{mem, num::NonZeroU64, ptr};
 
+use bitflags::bitflags;
+
 pub struct Elf64<'a> {
     data: &'a [u8],
 }
@@ -406,5 +408,100 @@ impl Elf64Header {
 
     const fn abi_version(&self) -> AbiVersion {
         AbiVersion(self.ident[Self::ABIVERSION_INDEX])
+    }
+}
+
+#[repr(C)]
+struct Elf64SectionHeader {
+    name_index: u32,
+    ty: SectionType,
+    flags: SectionFlags,
+    addr: u64,
+    offset: u64,
+    size: u64,
+    link: u32,
+    info: u32,
+    addr_align: u64,
+    entry_size: u64,
+}
+const _: () = {
+    ["Elf64SectionHeader size"][64 - mem::size_of::<Elf64SectionHeader>()];
+};
+
+#[repr(transparent)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SectionType(u32);
+
+impl SectionType {
+    pub const NULL: Self = Self(0);
+    pub const PROGBITS: Self = Self(1);
+    pub const SYMTAB: Self = Self(2);
+    pub const STRTAB: Self = Self(3);
+    pub const RELA: Self = Self(4);
+    pub const HASH: Self = Self(5);
+    pub const DYNAMIC: Self = Self(6);
+    pub const NOTE: Self = Self(7);
+    pub const NOBITS: Self = Self(8);
+    pub const REL: Self = Self(9);
+    pub const SHLIB: Self = Self(10);
+    pub const DYNSYM: Self = Self(11);
+    pub const INIT_ARRAY: Self = Self(14);
+    pub const FINI_ARRAY: Self = Self(15);
+    pub const PREINIT_ARRAY: Self = Self(16);
+    pub const GROUP: Self = Self(17);
+    pub const SYMTAB_SHNDX: Self = Self(18);
+
+    const LOOS: Self = Self(0x6000_0000);
+    const HIOS: Self = Self(0x6fff_ffff);
+    const LOPROC: Self = Self(0x7000_0000);
+    const HIPROC: Self = Self(0x7fff_ffff);
+    const LOUSER: Self = Self(0x8000_0000);
+    const HIUSER: Self = Self(0xffff_ffff);
+
+    pub const fn as_u32(self) -> u32 {
+        self.0
+    }
+
+    pub const fn is_os_specific(self) -> bool {
+        Self::LOOS.0 <= self.0 && self.0 <= Self::HIOS.0
+    }
+
+    pub const fn is_processor_specific(self) -> bool {
+        Self::LOPROC.0 <= self.0 && self.0 <= Self::HIPROC.0
+    }
+
+    pub const fn is_application_specific(self) -> bool {
+        #[allow(clippy::absurd_extreme_comparisons)]
+        {
+            Self::LOUSER.0 <= self.0 && self.0 <= Self::HIUSER.0
+        }
+    }
+}
+
+bitflags! {
+    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct SectionFlags : u64 {
+        const WRITE = 0x1;
+        const ALLOC = 0x2;
+        const EXECINSTR = 0x4;
+        const MERGE = 0x10;
+        const STRINGS = 0x20;
+        const INFO_LINK = 0x40;
+        const LINK_ORDER = 0x80;
+        const OS_NONCONFORMING = 0x100;
+        const GROUP = 0x200;
+        const TLS = 0x400;
+        const COMPRESSED = 0x800;
+        const MASKOS = 0x0ff0_0000;
+        const MASKPROC = 0xf000_0000;
+
+        // The source may set any bits.
+        const _ = !0;
+    }
+}
+
+impl SectionFlags {
+    pub const fn as_u64(self) -> u64 {
+        self.bits()
     }
 }
