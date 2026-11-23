@@ -530,7 +530,7 @@ const _: () = {
 };
 
 #[repr(transparent)]
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SegmentType(u32);
 
 impl SegmentType {
@@ -558,6 +558,30 @@ impl SegmentType {
 
     pub const fn is_processor_specific(self) -> bool {
         Self::LOPROC.0 <= self.0 && self.0 <= Self::HIPROC.0
+    }
+}
+
+impl core::fmt::Debug for SegmentType {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match *self {
+            Self::NULL => f.write_str("SegmentType::NULL"),
+            Self::LOAD => f.write_str("SegmentType::LOAD"),
+            Self::DYNAMIC => f.write_str("SegmentType::DYNAMIC"),
+            Self::INTERP => f.write_str("SegmentType::INTERP"),
+            Self::NOTE => f.write_str("SegmentType::NOTE"),
+            Self::SHLIB => f.write_str("SegmentType::SHLIB"),
+            Self::PHDR => f.write_str("SegmentType::PHDR"),
+            Self::TLS => f.write_str("SegmentType::TLS"),
+            ty if ty.is_os_specific() => f
+                .debug_tuple("SegmentType::OsSpecific")
+                .field(&ty.0)
+                .finish(),
+            ty if ty.is_processor_specific() => f
+                .debug_tuple("SegmentType::ProcessorSpecific")
+                .field(&ty.0)
+                .finish(),
+            ty => f.debug_tuple("SegmentType::Unknown").field(&ty.0).finish(),
+        }
     }
 }
 
