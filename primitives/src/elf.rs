@@ -67,7 +67,15 @@ impl<'a> Elf64<'a> {
 
 impl<'a> core::fmt::Debug for Elf64<'a> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("Elf64").finish_non_exhaustive()
+        f.debug_struct("Elf64")
+            .field("os_abi", &self.os_abi())
+            .field("abi_version", &self.abi_version())
+            .field("ty", &self.ty())
+            .field("machine", &self.machine())
+            .field("version", &self.version())
+            .field("entry", &self.entry())
+            .field("flags", &self.flags())
+            .finish_non_exhaustive()
     }
 }
 
@@ -84,7 +92,7 @@ pub enum ParseError {
 }
 
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Class(u8);
 
 impl Class {
@@ -97,8 +105,19 @@ impl Class {
     }
 }
 
+impl core::fmt::Debug for Class {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match *self {
+            Self::NONE => f.write_str("Class::NONE"),
+            Self::ELF32 => f.write_str("Class::ELF32"),
+            Self::ELF64 => f.write_str("Class::ELF64"),
+            class => f.debug_tuple("Class::Unknown").field(&class.0).finish(),
+        }
+    }
+}
+
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Endian(u8);
 
 impl Endian {
@@ -125,8 +144,19 @@ impl Endian {
     }
 }
 
+impl core::fmt::Debug for Endian {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match *self {
+            Self::NONE => f.write_str("Endian::NONE"),
+            Self::LSB => f.write_str("Endian::LSB"),
+            Self::MSB => f.write_str("Endian::MSB"),
+            endian => f.debug_tuple("Endian::Unknown").field(&endian.0).finish(),
+        }
+    }
+}
+
 #[repr(transparent)]
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct OsAbi(u8);
 
 impl OsAbi {
@@ -143,12 +173,23 @@ impl OsAbi {
     }
 }
 
+impl core::fmt::Debug for OsAbi {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match *self {
+            Self::NONE => f.write_str("OsAbi::NONE"),
+            Self::GNU => f.write_str("OsAbi::GNU"),
+            Self::LINUX => f.write_str("OsAbi::LINUX"),
+            abi => f.debug_tuple("OsAbi::Unknown").field(&abi.0).finish(),
+        }
+    }
+}
+
 #[repr(transparent)]
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AbiVersion(pub u8);
 
 #[repr(transparent)]
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Type(u16);
 
 impl Type {
@@ -190,8 +231,26 @@ impl Type {
     }
 }
 
+impl core::fmt::Debug for Type {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match *self {
+            Self::NONE => f.write_str("Type::NONE"),
+            Self::REL => f.write_str("Type::REL"),
+            Self::EXEC => f.write_str("Type::EXEC"),
+            Self::DYN => f.write_str("Type::DYN"),
+            Self::CORE => f.write_str("Type::CORE"),
+            ty if ty.is_os_specific() => f.debug_tuple("Type::OsSpecific").field(&ty.0).finish(),
+            ty if ty.is_processor_specific() => f
+                .debug_tuple("Type::ProcessorSpecific")
+                .field(&ty.0)
+                .finish(),
+            ty => f.debug_tuple("Type::Unknown").field(&ty.0).finish(),
+        }
+    }
+}
+
 #[repr(transparent)]
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Machine(u16);
 
 impl Machine {
@@ -225,8 +284,26 @@ impl Machine {
     }
 }
 
+impl core::fmt::Debug for Machine {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match *self {
+            Self::NONE => f.write_str("Machine::NONE"),
+            Self::I386 => f.write_str("Machine::I386"),
+            Self::ARM => f.write_str("Machine::ARM"),
+            Self::X86_64 => f.write_str("Machine::X86_64"),
+            Self::AARCH64 => f.write_str("Machine::AARCH64"),
+            Self::RISCV => f.write_str("Machine::RISCV"),
+            machine if machine.is_reserved() => f
+                .debug_tuple("Machine::Reserved")
+                .field(&machine.0)
+                .finish(),
+            machine => f.debug_tuple("Machine::Unknown").field(&machine.0).finish(),
+        }
+    }
+}
+
 #[repr(transparent)]
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Version(u8);
 
 impl Version {
@@ -235,6 +312,19 @@ impl Version {
 
     pub const fn as_u8(self) -> u8 {
         self.0
+    }
+}
+
+impl core::fmt::Debug for Version {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match *self {
+            Self::NONE => f.write_str("Version::NONE"),
+            Self::CURRENT => f.write_str("Version::CURRENT"),
+            version => f
+                .debug_tuple("Version::Unsupported")
+                .field(&version.0)
+                .finish(),
+        }
     }
 }
 
