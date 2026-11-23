@@ -101,7 +101,7 @@ impl RunCommand {
             qemu.args(["-accel", "hvf"]);
         }
         #[cfg(target_os = "linux")]
-        if self.arch == Arch::host() {
+        if self.arch == Arch::host() && fs::exists("/dev/kvm")? {
             qemu.args(["-accel", "kvm"]);
         }
 
