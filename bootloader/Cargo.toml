@@ -16,6 +16,7 @@ bench = false
 
 [dependencies]
 arch = { version = "0.0.0", path = "../arch" }
+primitives = { version = "0.0.0", path = "../primitives" }
 uefi = { version = "0.41.0", features = ["panic_handler"] }
 
 [lints]

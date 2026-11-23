@@ -121,6 +121,7 @@ name = "bootloader"
 version = "0.0.0"
 dependencies = [
  "arch",
+ "primitives",
  "uefi",
 ]
 

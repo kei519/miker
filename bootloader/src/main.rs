@@ -3,6 +3,7 @@
 
 use core::slice;
 
+use primitives::elf::Elf64;
 use uefi::{
     CStr16,
     boot::{AllocateType, MemoryType},
@@ -72,11 +73,8 @@ fn main() -> Status {
         )
     };
     let read_size = kernel.read(kernel_read_buf).unwrap();
-
-    assert_eq!(read_size, kernel_file_size);
-    println!("Read {} bytes", read_size);
-    assert_eq!(&kernel_read_buf[..4], b"\x7fELF");
-    println!("sig: {:x?}", &kernel_read_buf[..4]);
+    let elf = Elf64::new(&kernel_read_buf[..read_size]).unwrap();
+    println!("{elf:#?}");
 
     loop {
         arch::hlt();
