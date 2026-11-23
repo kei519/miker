@@ -75,6 +75,18 @@ fn main() -> Status {
     let read_size = kernel.read(kernel_read_buf).unwrap();
     let elf = Elf64::new(&kernel_read_buf[..read_size]).unwrap();
     println!("{elf:#?}");
+    for seg in elf.segments() {
+        let seg = seg.unwrap();
+        println!(
+            "{:016x}..{:016x} (align: {:x}): {:x?} {:?} (file_size: {})",
+            seg.vaddr,
+            seg.vaddr + seg.mem_size,
+            seg.align,
+            seg.ty,
+            seg.flags,
+            seg.data.len()
+        );
+    }
 
     loop {
         arch::hlt();
