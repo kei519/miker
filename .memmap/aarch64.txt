@@ -1,0 +1,92 @@
+MemoryMapOwned { buf: MemoryMapBackingMemory(Pointer { addr: 0x467e4018, metadata: 13e0 }), meta: MemoryMapMeta { map_size: 1110, desc_size: 30, map_key: MemoryMapKey(741), desc_version: 1 }, len: 5b }
+MemoryDescriptor { ty: CONVENTIONAL, padding: 0, phys_start: 40000000, virt_start: 0, page_count: 4000, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 44000000, virt_start: 0, page_count: 20, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: CONVENTIONAL, padding: 0, phys_start: 44020000, virt_start: 0, page_count: 1eb7, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: LOADER_CODE, padding: 0, phys_start: 45ed7000, virt_start: 0, page_count: 21, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: CONVENTIONAL, padding: 0, phys_start: 45ef8000, virt_start: 0, page_count: 6, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 45efe000, virt_start: 0, page_count: 193, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46091000, virt_start: 0, page_count: 108, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46199000, virt_start: 0, page_count: a2, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 4623b000, virt_start: 0, page_count: e, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46249000, virt_start: 0, page_count: f, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46258000, virt_start: 0, page_count: 5, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 4625d000, virt_start: 0, page_count: 6, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46263000, virt_start: 0, page_count: 4, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46267000, virt_start: 0, page_count: 6, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 4626d000, virt_start: 0, page_count: c, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46279000, virt_start: 0, page_count: 1, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 4627a000, virt_start: 0, page_count: d, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46287000, virt_start: 0, page_count: 1b, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 462a2000, virt_start: 0, page_count: 10, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 462b2000, virt_start: 0, page_count: 11, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 462c3000, virt_start: 0, page_count: 13, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 462d6000, virt_start: 0, page_count: 1, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 462d7000, virt_start: 0, page_count: 1d, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 462f4000, virt_start: 0, page_count: 411, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46705000, virt_start: 0, page_count: a, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 4670f000, virt_start: 0, page_count: b, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 4671a000, virt_start: 0, page_count: 13, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 4672d000, virt_start: 0, page_count: 1, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 4672e000, virt_start: 0, page_count: 12, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46740000, virt_start: 0, page_count: 126, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46866000, virt_start: 0, page_count: 25, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 4688b000, virt_start: 0, page_count: 4, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: ACPI_RECLAIM, padding: 0, phys_start: 4688f000, virt_start: 0, page_count: 2, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46891000, virt_start: 0, page_count: 5, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46896000, virt_start: 0, page_count: 1c, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 468b2000, virt_start: 0, page_count: 1, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 468b3000, virt_start: 0, page_count: 2c, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 468df000, virt_start: 0, page_count: 5, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 468e4000, virt_start: 0, page_count: 38, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 4691c000, virt_start: 0, page_count: 6, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: ACPI_RECLAIM, padding: 0, phys_start: 46922000, virt_start: 0, page_count: 1, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46923000, virt_start: 0, page_count: 1, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46924000, virt_start: 0, page_count: 2c, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: RUNTIME_SERVICES_CODE, padding: 0, phys_start: 46950000, virt_start: 0, page_count: c0, att: MemoryAttribute(WRITE_BACK | RUNTIME) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46a10000, virt_start: 0, page_count: 1, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46a11000, virt_start: 0, page_count: 4, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46a15000, virt_start: 0, page_count: 9, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46a1e000, virt_start: 0, page_count: 1e, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46a3c000, virt_start: 0, page_count: 7, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46a43000, virt_start: 0, page_count: b, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46a4e000, virt_start: 0, page_count: 2, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: RUNTIME_SERVICES_DATA, padding: 0, phys_start: 46a50000, virt_start: 0, page_count: 170, att: MemoryAttribute(WRITE_BACK | RUNTIME) }
+MemoryDescriptor { ty: RUNTIME_SERVICES_CODE, padding: 0, phys_start: 46bc0000, virt_start: 0, page_count: 50, att: MemoryAttribute(WRITE_BACK | RUNTIME) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46c10000, virt_start: 0, page_count: 8, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46c18000, virt_start: 0, page_count: b, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46c23000, virt_start: 0, page_count: 30, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46c53000, virt_start: 0, page_count: 49, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46c9c000, virt_start: 0, page_count: 14, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: RUNTIME_SERVICES_DATA, padding: 0, phys_start: 46cb0000, virt_start: 0, page_count: 50, att: MemoryAttribute(WRITE_BACK | RUNTIME) }
+MemoryDescriptor { ty: RUNTIME_SERVICES_CODE, padding: 0, phys_start: 46d00000, virt_start: 0, page_count: 50, att: MemoryAttribute(WRITE_BACK | RUNTIME) }
+MemoryDescriptor { ty: RUNTIME_SERVICES_DATA, padding: 0, phys_start: 46d50000, virt_start: 0, page_count: 50, att: MemoryAttribute(WRITE_BACK | RUNTIME) }
+MemoryDescriptor { ty: RUNTIME_SERVICES_CODE, padding: 0, phys_start: 46da0000, virt_start: 0, page_count: 50, att: MemoryAttribute(WRITE_BACK | RUNTIME) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46df0000, virt_start: 0, page_count: 10, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46e00000, virt_start: 0, page_count: 8, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46e08000, virt_start: 0, page_count: 1d, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46e25000, virt_start: 0, page_count: 2, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46e27000, virt_start: 0, page_count: 4, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46e2b000, virt_start: 0, page_count: 5, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46e30000, virt_start: 0, page_count: 5, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46e35000, virt_start: 0, page_count: 6, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46e3b000, virt_start: 0, page_count: 1a, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46e55000, virt_start: 0, page_count: a, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46e5f000, virt_start: 0, page_count: 8, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46e67000, virt_start: 0, page_count: 6, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46e6d000, virt_start: 0, page_count: e, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46e7b000, virt_start: 0, page_count: 2, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46e7d000, virt_start: 0, page_count: 8, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46e85000, virt_start: 0, page_count: 1, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 46e86000, virt_start: 0, page_count: 18, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 46e9e000, virt_start: 0, page_count: 782, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: RUNTIME_SERVICES_CODE, padding: 0, phys_start: 47620000, virt_start: 0, page_count: a0, att: MemoryAttribute(WRITE_BACK | RUNTIME) }
+MemoryDescriptor { ty: RUNTIME_SERVICES_DATA, padding: 0, phys_start: 476c0000, virt_start: 0, page_count: 130, att: MemoryAttribute(WRITE_BACK | RUNTIME) }
+MemoryDescriptor { ty: CONVENTIONAL, padding: 0, phys_start: 477f0000, virt_start: 0, page_count: 5, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 477f5000, virt_start: 0, page_count: 23, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 47818000, virt_start: 0, page_count: 39, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 47851000, virt_start: 0, page_count: 693, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: CONVENTIONAL, padding: 0, phys_start: 47ee4000, virt_start: 0, page_count: 10, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_CODE, padding: 0, phys_start: 47ef4000, virt_start: 0, page_count: 4, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: BOOT_SERVICES_DATA, padding: 0, phys_start: 47ef8000, virt_start: 0, page_count: 108, att: MemoryAttribute(WRITE_BACK) }
+MemoryDescriptor { ty: MMIO, padding: 0, phys_start: 4000000, virt_start: 0, page_count: 4000, att: MemoryAttribute(UNCACHEABLE | RUNTIME) }
+MemoryDescriptor { ty: MMIO, padding: 0, phys_start: 9010000, virt_start: 0, page_count: 1, att: MemoryAttribute(UNCACHEABLE | RUNTIME) }
