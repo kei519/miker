@@ -36,6 +36,10 @@ pub struct RunCommand {
     /// you must specify the path through this.
     #[arg(long)]
     qemu_path: Option<Utf8PathBuf>,
+
+    /// Extra arguments for QEMU.
+    #[arg(name = "ARGS")]
+    extra_qemu_args: Vec<String>,
 }
 
 impl RunCommand {
@@ -94,7 +98,8 @@ impl RunCommand {
                     "if=none,id=usb0,media=disk,format=raw,file={}",
                     result.image_path()
                 ),
-            ]);
+            ])
+            .args(self.extra_qemu_args);
 
         #[cfg(target_os = "macos")]
         if self.arch == Arch::host() {
