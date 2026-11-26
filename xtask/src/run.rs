@@ -87,6 +87,8 @@ impl RunCommand {
             .args(["-device", "usb-kbd"])
             .args(["-device", "usb-mouse"])
             .args(["-device", "usb-storage,drive=usb0"])
+            // .args(["-device", "virtio-rng-device,rng=rng0"])
+            // .args(["-object", "rng-random,filename=/dev/urandom,id=rng0"])
             .args([OsStr::new("-drive"), &ovmf_code_option])
             .args([
                 "-drive",
@@ -101,10 +103,10 @@ impl RunCommand {
             ])
             .args(self.extra_qemu_args);
 
-        #[cfg(target_os = "macos")]
-        if self.arch == Arch::host() {
-            qemu.args(["-accel", "hvf"]);
-        }
+        // #[cfg(target_os = "macos")]
+        // if self.arch == Arch::host() {
+        //     qemu.args(["-accel", "hvf"]);
+        // }
         #[cfg(target_os = "linux")]
         if self.arch == Arch::host() && fs::exists("/dev/kvm")? {
             qemu.args(["-accel", "kvm"]);

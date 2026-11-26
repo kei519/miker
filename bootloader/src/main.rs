@@ -1,12 +1,18 @@
 #![no_std]
 #![no_main]
 
-use core::slice;
+use core::{
+    cmp,
+    mem::{self, MaybeUninit},
+    slice,
+};
 
 use primitives::elf::Elf64;
 use uefi::{
     CStr16,
-    boot::{AllocateType, MemoryType},
+    boot::{AllocateType, MemoryType, SearchType},
+    data_types::PhysicalAddress,
+    mem::memory_map::MemoryMap as _,
     prelude::*,
     println,
     proto::{
@@ -15,6 +21,7 @@ use uefi::{
             file::{File, FileAttribute, FileInfo, FileMode},
             fs::SimpleFileSystem,
         },
+        rng::Rng,
     },
 };
 
@@ -87,6 +94,60 @@ fn main() -> Status {
             seg.data.len()
         );
     }
+    let (start, end) = elf
+        .segments()
+        .fold((u64::MAX, u64::MIN), |(start, end), seg| {
+            let seg = seg.unwrap();
+            if seg.mem_size == 0 {
+                (start, end)
+            } else {
+                (
+                    cmp::min(start, seg.vaddr),
+                    cmp::max(end, seg.vaddr + seg.mem_size),
+                )
+            }
+        });
+    println!("{start:x}..{end:x}");
+    let (start, end) = (
+        start / (boot::PAGE_SIZE as u64) * boot::PAGE_SIZE as u64,
+        end.next_multiple_of(boot::PAGE_SIZE as u64),
+    );
+    println!("{start:x}..{end:x}");
+
+    let rng_handle = {
+        let mut buf = [MaybeUninit::uninit(); 16];
+        match boot::locate_handle(SearchType::from_proto::<Rng>(), &mut buf) {
+            Ok(handles) => handles.first().copied(),
+            Err(e) if e.status() == Status::NOT_FOUND => None,
+            Err(e) => panic!("{e}"),
+        }
+    };
+
+    let allocate_type = if let Some(rng_handle) = rng_handle {
+        let mut rng = boot::open_protocol_exclusive::<Rng>(rng_handle).unwrap();
+        let mut aslr_base_ne = [0u8; mem::size_of::<u64>()];
+        rng.get_rng(None, &mut aslr_base_ne).unwrap();
+        let aslr_base = PhysicalAddress::from_ne_bytes(aslr_base_ne);
+        let page_base = (aslr_base >> 12 << 12) % (64 << 20);
+        AllocateType::Address(page_base)
+    } else {
+        AllocateType::AnyPages
+    };
+    println!("aslr_base: {:x?}", allocate_type);
+
+    let mem_map = boot::memory_map(MemoryType::BOOT_SERVICES_DATA).unwrap();
+    println!("{mem_map:x?}");
+
+    for desc in mem_map.entries() {
+        println!("{desc:x?}");
+    }
+
+    let page = boot::allocate_pages(
+        allocate_type,
+        MemoryType::BOOT_SERVICES_DATA,
+        (end - start) as usize / boot::PAGE_SIZE,
+    );
+    println!("{:x?}", page);
 
     loop {
         arch::hlt();
